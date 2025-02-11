@@ -1,0 +1,50 @@
+{
+  "private": true,
+  "scripts": {
+    "serve": "vite preview",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.5.1",
+    "@fortawesome/fontawesome-svg-core": "^6.5.1",
+    "@fortawesome/free-solid-svg-icons": "^6.5.1",
+    "@fortawesome/vue-fontawesome": "^3.0.6",
+    "@inertiajs/inertia": "^0.11.1",
+    "@inertiajs/inertia-vue3": "^0.6.0",
+    "@mdi/font": "^7.4.47",
+    "aos": "^2.3.4",
+    "fontawesome": "^5.6.3",
+    "install": "^0.13.0",
+    "jetstream": "^0.1.0",
+    "printd": "^1.6.0",
+    "qrcode.vue": "^3.4.1",
+    "roboto-fontface": "*",
+    "signature_pad": "^4.1.7",
+    "swal": "^0.1.0",
+    "sweetalert2": "^11.6.13",
+    "three": "^0.163.0",
+    "vue-multiselect": "^3.0.0",
+    "vue-signature-pad": "^3.0.2",
+    "webfontloader": "^1.0.0",
+    "wkhtmltopdf": "^0.4.0"
+  },
+  "devDependencies": {
+    "@inertiajs/vue3": "^1.0.0",
+    "@tailwindcss/forms": "^0.5.2",
+    "@tailwindcss/typography": "^0.5.2",
+    "@vitejs/plugin-vue": "^4.5.0",
+    "autoprefixer": "^10.4.17",
+    "axios": "^1.7.2",
+    "flowbite": "^2.3.0",
+    "laravel-vite-plugin": "^1.0.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.0.0",
+    "vite-plugin-vuetify": "^2.0.1",
+    "vue": "^3.2.31",
+    "vue-cli-plugin-vuetify": "~2.5.8",
+    "vuetify": "^3.6.8"
+  },
+  "type": "module"
+}

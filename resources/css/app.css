@@ -1,0 +1,32 @@
+/* @tailwind base; */
+@tailwind components;
+@tailwind utilities;
+
+
+
+[x-cloak] {
+    display: none;
+}
+
+/* Your custom base styles */
+
+
+a {
+    text-decoration: none;
+    color: black; /* Set text color to black */
+    
+}
+ul {
+    list-style-type: none;
+  }
+
+ul li {
+  color: black; /* Set text color to black */
+}
+
+
+  
+
+
+
+
