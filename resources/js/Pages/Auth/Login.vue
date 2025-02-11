@@ -97,7 +97,7 @@ const submit = () => {
 
 <style>
     #AuthenticationCard {
-        background: url('../../../../public//images/bg-dar2.svg') no-repeat center center fixed;
+        background: url('../../../../public//images/bg-dar3.svg') no-repeat center center fixed;
         background-size: cover;
          width: 100vw;
          height: 100vh;
