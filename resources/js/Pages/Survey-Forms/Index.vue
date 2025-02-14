@@ -153,7 +153,7 @@ onMounted(() => {
     Swal.fire({
         title: "Disclaimer",
         icon: "warning",
-        text: "The DOST is committed to protect and respect your personal data privacy. All information collected will only be used for documentation purposes and will not be published in any platform.",
+        text: "The DAR is committed to protect and respect your personal data privacy. All information collected will only be used for documentation purposes and will not be published in any platform.",
     });
 });
 
@@ -281,7 +281,7 @@ watch(
         class="bg-white dark:bg-gray-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600">
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
-                <img src="../../../../public/images/dar-logo.svg" class="h-8" alt="DOST Logo" >
+                <img src="../../../../public/images/dar-logo.svg" class="h-8" alt="DAR Logo" >
                 <span class="self-center lg:text-2xl md:text-base sm:text-sm font-semibold whitespace-nowrap dark:text-white text-black">Department of Science and Technology </span>
             </a>
         </div>
