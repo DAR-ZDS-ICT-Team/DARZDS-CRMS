@@ -24,7 +24,7 @@
                     data-aos-delay="500" 
                     class="bg-white dark:bg-gray-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600">
                     <div style="text-align: center; margin: auto;">
-                         <img style="height:120px; height:120px" src="../../../../../../public/images/dar-logo.svg" class="h-8" alt="DOST Logo">                  
+                         <img style="height:120px; height:120px" src="../../../../../../public/images/dar-logo.svg" class="h-8" alt="DAR Logo">                  
                     </div>
 
                     <div style="text-align: center; margin: auto;margin-bottom: 20px">
