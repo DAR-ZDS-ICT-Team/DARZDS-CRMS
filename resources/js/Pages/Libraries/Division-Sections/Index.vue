@@ -148,7 +148,7 @@ const openPDF = () => {
                                      >
 
                                        <div>
-                                         <v-btn prepend-icon="mdi-eye" class="mr-3" size="small" @click="goViewPage(division_section.id, section.id)"
+                                         <v-btn prepend-icon="mdi-eye" class="mr-3" size="small" @click="goViewPage(division_section.id, '')"
                                             :disabled="user.account_type == 'user'"
                                         >
                                             View 
