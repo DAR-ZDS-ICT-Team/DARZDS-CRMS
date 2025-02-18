@@ -19,7 +19,7 @@ const props = defineProps({
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
                 <img src="../../../../public//images/dar-logo.jpg" class="h-8" alt="DAR Logo">
-                <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Department of Science and Technology</span>
+                <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Department of Agrarian Reform ZDS</span>
             </a>
         </div>
     </nav>

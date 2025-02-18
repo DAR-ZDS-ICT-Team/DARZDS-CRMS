@@ -215,7 +215,7 @@ import { key } from 'fontawesome';
     </table>
     <div class="assessment m-5">
       <p>
-        The Department of Science and Technology IX for the year 2023 had a total of 3,786 respondents who filled out and rated the Customer Satisfaction Feedback. 3,760 (out of 3,786, or 99.31%) of the respondents rated the CSF as either very satisfied (VS) or satisfied (S), which resulted in an overall average Customer Satisfaction Index (CSI) of 98.09% and a Net Promoter Score of 90.0%.
+        The Department of Agrarian and Reform Zamboanga Del Sur for the year 2024 had a total of 3,786 respondents who filled out and rated the Customer Satisfaction Feedback. 3,760 (out of 3,786, or 99.31%) of the respondents rated the CSF as either very satisfied (VS) or satisfied (S), which resulted in an overall average Customer Satisfaction Index (CSI) of 98.09% and a Net Promoter Score of 90.0%.
       </p>
       <p>
         For the year 2023, through the DAR-ZDS's Customer Relations Management System, the survey instruments were all aligned with the 8 Service Quality Dimensions (SQD) and scored using a 5-point Likert scale rating. The interpretation of the results is as follows: 1.00-1.49 = very unsatisfied; 1.50-2.49 = unsatisfied; 2.50-3.49 = neither unsatisfied nor satisfied; 3.50-4.49 = satisfied; and 4.50-5.00 = very satisfied. As a result, DAR-ZDS recorded an overall score of 4.90, which translates to "very satisfied" for the year 2023.

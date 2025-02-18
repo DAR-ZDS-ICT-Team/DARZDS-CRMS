@@ -282,7 +282,7 @@ watch(
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
                 <img src="../../../../public/images/dar-logo.svg" class="h-8" alt="DAR Logo" >
-                <span class="self-center lg:text-2xl md:text-base sm:text-sm font-semibold whitespace-nowrap dark:text-white text-black">Department of Science and Technology </span>
+                <span class="self-center lg:text-2xl md:text-base sm:text-sm font-semibold whitespace-nowrap dark:text-white text-black">Department of Agrarian Reform ZDS </span>
             </a>
         </div>
     </nav>
