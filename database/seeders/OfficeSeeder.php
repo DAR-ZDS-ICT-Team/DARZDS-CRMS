@@ -17,9 +17,9 @@ class OfficeSeeder extends Seeder
             [
                 'id' => 1,
                 'name' => 'ZDS PROVINCIAL OFFICE',
-                'code' => 'I',
+                'code' => 'ZDS',
                 'short_name' => 'ZDS PROVINCIAL OFFICE',
-                'order' => '1',
+                'order' => 'ZDS',
             ],
 
         ];
