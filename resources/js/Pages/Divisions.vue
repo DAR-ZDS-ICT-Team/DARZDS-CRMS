@@ -18,19 +18,16 @@ const goDivisionSections = async (office_id, division_id) => {
 }
 
 // Uncomment and modify this function when you implement division services
-// const goDivisionServices = async (office_id, division_id) => {
-//     router.get(`/divisions/csf/division_services?office_id=${office_id}&division_id=${division_id}`)
-// }
 
-// const navigateToDivision = async (office_id, division) => {
-//     if (division.sections && division.sections.length > 0) {
-//         goDivisionSections(office_id, division.id);
-//     } else if (division.services && division.services.length > 0) {
-//         goDivisionServices(office_id, division.id);
-//     } else {
-//         console.warn("This division has neither sections nor services.");
-//     }
-// };
+const navigateToDivision = async (office_id, division) => {
+    if (division.sections && division.sections.length > 0) {
+        goDivisionSections(office_id, division.id);
+    } else if (division.services && division.services.length > 0) {
+        goDivisionServices(office_id, division.id);
+    } else {
+        console.warn("This division has neither sections nor services.");
+    }
+};
 
 const goBack = async () => {
     window.history.back()

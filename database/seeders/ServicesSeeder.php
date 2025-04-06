@@ -14,12 +14,12 @@ class ServicesSeeder extends Seeder
     public function run(): void
     {
         $services = [
-            [
-                'division_id' => '1',
-                'section_id' => null,
-                'service_name' => 'Handling of Customer Complaints',
-                'slug' => 'handling-of-customer-complaints',
-            ],
+            // [
+            //     'division_id' => '1',
+            //     'section_id' => null,
+            //     'service_name' => 'Handling of Customer Complaints',
+            //     'slug' => 'handling-of-customer-complaints',
+            // ],
             [
                 'division_id' => '2',
                 'section_id' => null,
@@ -70,25 +70,25 @@ class ServicesSeeder extends Seeder
             ],
             [
                 'division_id' => '1',
-                'section_id' => '4',
+                'section_id' => '5',
                 'service_name' => 'Issuance of Personnel Records',
                 'slug' => 'issuance-of-personnel-records',
             ],
             [
-                'division_id' => '3',
-                'section_id' => '4',
+                'division_id' => '1',
+                'section_id' => '5',
                 'service_name' => 'HR Management Control',
                 'slug' => 'hr-management-control',
             ],
             [
                 'division_id' => '1',
-                'section_id' => '5',
+                'section_id' => '6',
                 'service_name' => 'Procurement',
                 'slug' => 'procurement',
             ],
             [
                 'division_id' => '1',
-                'section_id' => '5',
+                'section_id' => '6',
                 'service_name' => 'Property and Supply Management',
                 'slug' => 'property-and-supply-management',
             ],

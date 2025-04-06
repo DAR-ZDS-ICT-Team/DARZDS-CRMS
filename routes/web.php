@@ -38,7 +38,7 @@ Route::get('/divisions/csf/offices', [SurveyFormController::class, 'offices_inde
 Route::get('/divisions/csf/divisions', [SurveyFormController::class, 'divisions_index'])->name('divisions_index');
 Route::get('/divisions/csf/division_sections', [SurveyFormController::class, 'division_sections_index'])->name('division_sections_index');
 Route::get('/divisions/csf/section_services_index', [SurveyFormController::class, 'section_services_index'])->name('section_services_index');
-// Route::get('/divisions/csf/section/sub-sections', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
+Route::get('/divisions/csf/services/check-sub-services', [SurveyFormController::class, 'checkServiceSubServices']);// Route::get('/divisions/csf/section/sub-sections', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
 // Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');
 // Route::get('/divisions/csf/section/services', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
 // Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');

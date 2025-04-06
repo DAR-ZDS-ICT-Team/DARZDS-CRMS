@@ -7,6 +7,8 @@ import { router } from '@inertiajs/vue3'
 
 AOS.init();
 
+
+
 defineProps({
     services: Object,
     section_services: Object,
@@ -18,8 +20,10 @@ defineProps({
     section: Object,
 });
 
+
+
 const getServiceSubServices = async (office_id, division_id, section_id, service_id) => {
-    router.get(`/divisions/csf/service/sub-services?office_id=${office_id}&division_id=${division_id}&section_id=${section_id}&service_id=${service_id}`);
+    router.get(`/divisions/csf/services/check-sub-services?office_id=${office_id}&division_id=${division_id}&section_id=${section_id}&service_id=${service_id}`);
 }
 
 const goBack = async () => {
@@ -28,6 +32,7 @@ const goBack = async () => {
 </script>
 
 <template >
+
     <Head title="Services" />   
     <nav 
         data-aos="fade-down" 
@@ -47,14 +52,14 @@ const goBack = async () => {
             <v-col>
                 <div class="w-full border bg-primary">
                     <v-card-title class="text-center">
-                        {{ section ? section.section_name : division.division_name }} Services
+                        {{ services ? services.services_name : division.division_name }} Services
                     </v-card-title>
                 </div>
             </v-col>
         </v-row>
         <v-row class="mx-10 mt-5" justify="center" align="center">
             <v-col 
-                v-for="service in (section_services || services)" 
+                v-for="service in (section_services || division_services || services)" 
                 :key="service.id" 
                 cols="12" 
                 sm="6" 

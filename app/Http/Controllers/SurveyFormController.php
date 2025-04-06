@@ -238,6 +238,46 @@ class SurveyFormController extends Controller
                         ->with('divisions', $divisions );
     }
 
+    public function checkServiceSubServices(Request $request)
+{
+    // Get basic information
+    $office = Office::find($request->office_id);
+    $division = Division::find($request->division_id);
+    $section = Section::find($request->section_id);
+    $service = Services::find($request->service_id);
+    
+    // Verify the service exists
+    if (!$service) {
+        return redirect()->back()->with('error', 'Service not found');
+    }
+    
+    // Check if the service has any subservices
+    $subServices = SubServices::where('service_id', $request->service_id)->get();
+    
+    if ($subServices->isNotEmpty()) {
+        // If subservices exist, render the SubServices view
+        return Inertia::render('SubServices', [
+            'office_id' => $request->office_id,
+            'office' => $office,
+            'division_id' => $request->division_id,
+            'division' => $division,
+            'section_id' => $request->section_id,
+            'section' => $section,
+            'service_id' => $request->service_id,
+            'service' => $service,
+            'sub_services' => $subServices
+        ]);
+    }
+    
+    // If no subservices exist, redirect to CSF form with appropriate parameters
+    return Inertia::location('/divisions/csf?' . http_build_query([
+        'office_id' => $request->office_id,
+        'division_id' => $request->division_id,
+        'section_id' => $request->section_id,
+        'service_id' => $request->service_id
+    ]));
+}
+
     // public function division_sections_index(Request $request){
        
     //     //selected office
@@ -298,7 +338,7 @@ class SurveyFormController extends Controller
                 'office' => $office,
                 'division_id' => $request->division_id,
                 'division' => $division,
-                'division_services' => $services
+                'services' => $services
             ]);
         }
 
