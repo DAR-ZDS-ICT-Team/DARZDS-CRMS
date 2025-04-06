@@ -32,6 +32,10 @@ class SectionSeeder extends Seeder
             ],
             [
                 'division_id' => 1,
+                'section_name' => 'Personnel',
+            ],
+            [
+                'division_id' => 1,
                 'section_name' => 'Supply',
             ],
 
