@@ -16,6 +16,10 @@ class Section extends Model
         return $this->belongsTo(Division::class);
     }
 
+    public function services(){
+        return $this->hasMany(Services::class);
+    }
+
     public function sub_sections(){
         return $this->hasMany(SubSection::class);
     }

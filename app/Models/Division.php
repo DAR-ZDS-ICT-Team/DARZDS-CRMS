@@ -18,5 +18,10 @@ class Division extends Model
         return $this->hasMany(Section::class);
     }
 
+    public function services()
+    {
+        return $this->hasMany(Services::class);
+    }
+
 
 }

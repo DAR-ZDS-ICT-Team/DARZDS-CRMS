@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use App\Models\Section;
+use App\Models\Services;
 use Inertia\Inertia;
 use App\Models\Assignatorees;
 use App\Models\CSFForm;
@@ -18,72 +19,108 @@ use App\Models\CustomerAttributeRating;
 use App\Models\CustomerComment;
 use App\Models\CustomerCCRating;
 use App\Http\Resources\Section as SectionResource;
+use App\Http\Resources\Services as ServiceResource;
 use App\Models\CustomerRecommendationRating;
 use App\Http\Resources\Division as DivisionResource;
 use App\Http\Resources\SubSection as SubSectionResource;
 use App\Http\Resources\SectionSubSection as SectionSubSectionResource;
+use App\Http\Resources\SubServices as SubServicesResource;
+use App\Http\Resources\ServicesSubServices as ServicesSubServicesResource;
 use App\Http\Resources\CustomerAttributeRatings as CARResource;
 
 class ReportController extends Controller
 {
-    public function index(Request $request )
-    {
-        //get user
-        $user = Auth::user();
+    public function index(Request $request)
+{
+    // Get the authenticated user
+    $user = Auth::user();
 
-        //get assignatoree list
-        $assignatorees = Assignatorees::all();
+    // Get assignatoree list and dimensions
+    $assignatorees = Assignatorees::all();
+    $dimensions = Dimension::all();
 
-        $dimensions = Dimension::all();
-        $division = Division::findOrFail($request->division_id);
+    // Fetch division (required)
+    $division = Division::findOrFail($request->division_id);
 
-        $sections= [];
-        $section = [];
-        if($request->section_id){
-            $sections = Section::where('id',$request->section_id)->get();
-            $section = SectionResource::collection($sections);
-        }
-     
+    // Initialize variables
+    $section = null;
+    $services = [];
+    $subservices = [];
 
-        $sub_section_types = SubSectionType::where('sub_section_id', $request->sub_section_id)->get();
+    // If a section is selected
+    if ($request->section_id) {
+        // Get the section
+        $sectionModel = Section::findOrFail($request->section_id);
 
-        $sub_section= [];
-        $sub_section=  SubSection::when($request->sub_section_id, function ($query, $sub_section_id) {
-            $query->where('id', $sub_section_id);
-        })->get();
+        // Wrap it in a resource collection if needed
+        $section = SectionResource::collection([$sectionModel]);
 
-        return Inertia::render('CSI/Index')
-            ->with('assignatorees', $assignatorees)
-            ->with('dimensions', $dimensions)
-            ->with('division', $division)
-            ->with('section', $section)
-            ->with('sub_section_types', $sub_section_types)
-            ->with('user', $user)
-            ->with('sub_section', $sub_section);
+        // Get services under the section
+        $services = Service::where('section_id', $sectionModel->id)->get();
+    } else {
+        // No section? Then get services directly under the division
+        $services = Service::where('division_id', $division->id)->whereNull('section_id')->get();
     }
 
-
-    public function view(Request $request )
-    {
-        //get user
-        $user = Auth::user();
-
-        $dimensions = Dimension::all();
-        $division = Division::findOrFail($request->division_id);
-
-        $sections = Section::where('id',$request->section_id)->get();
-        $section = SectionResource::collection($sections);
-
-        $sub_section_types = SubSectionType::where('sub_section_id',  $request->sub_section_id)->get();
-
-        return Inertia::render('Libraries/Division-Sections/Views/View')
-            ->with('dimensions', $dimensions)
-            ->with('division', $division)
-            ->with('section', $section)
-            ->with('sub_section_types', $sub_section_types)
-            ->with('user', $user);
-    
+    // If you have subservices related to services, you can fetch like this:
+    // assuming there's a `subservices` relationship on Service model
+    foreach ($services as $service) {
+        $service->load('subservices'); // eager load subservices if needed
     }
+
+    return Inertia::render('CSI/Index', [
+        'assignatorees' => $assignatorees,
+        'dimensions'    => $dimensions,
+        'division'      => $division,
+        'section'       => $section,
+        'services'      => $services,
+        'subservices'   => $subservices,
+        'user'          => $user,
+    ]);
+}
+
+
+
+public function view(Request $request)
+{
+    // Get the authenticated user
+    $user = Auth::user();
+
+    // Fetch dimensions and division
+    $dimensions = Dimension::all();
+    $division = Division::findOrFail($request->division_id);
+
+    $section = null;
+    $services = [];
+    $subservices = [];
+
+    // Check if section is selected
+    if ($request->section_id) {
+        $sectionModel = Section::findOrFail($request->section_id);
+        $section = SectionResource::collection([$sectionModel]);
+
+        // Fetch services under this section
+        $services = Service::where('section_id', $sectionModel->id)->get();
+    } else {
+        // No section? Then fetch services directly under the division
+        $services = Service::where('division_id', $division->id)->whereNull('section_id')->get();
+    }
+
+    // Optionally load subservices if relationship exists
+    foreach ($services as $service) {
+        $service->load('subservices');
+    }
+
+    return Inertia::render('Libraries/Division-Sections/Views/View', [
+        'dimensions' => $dimensions,
+        'division'   => $division,
+        'section'    => $section,
+        'services'   => $services,
+        'subservices'   => $subservices,
+        'user'       => $user,
+    ]);
+}
+
 
 
     public function generateReports(Request $request )
@@ -107,10 +144,11 @@ class ReportController extends Controller
     
     }
 
-
     public function generateCSIBySectionByDate($request, $office_id)
     {
-        $sub_section = $this->getSubSection($request);
+        // Get services instead of subsections
+        $services = $this->getServices($request);
+        // Keep subsection_types for now as you mentioned not to include service_types
         $sub_section_types = $this->getSubSectionTypes($request);
 
         //get user
@@ -119,16 +157,18 @@ class ReportController extends Controller
         $assignatorees = Assignatorees::all();
         
         $division_id = $request->division['id'];
-        $section_id = $request->section_id;
-        $sub_section_id = $request->selected_sub_section;
+        // Handle both section and direct service scenarios
+        $section_id = $request->section_id ?? null;
+        // Replace subsection with service
+        $service_id = $request->selected_service;
         $client_type = $request->client_type; 
         $sub_section_type = $request->sub_section_type; 
 
-       // search and check list of forms query  
-       $customer_ids = $this->querySearchCSF($office_id, $division_id, $section_id ,$sub_section_id, $client_type, $sub_section_type );
+        // Modify query to handle both section->service and division->service paths
+        $customer_ids = $this->querySearchCSF($office_id, $division_id, $section_id, $service_id, $client_type, $sub_section_type);
 
-       $cc_query = CustomerCCRating::whereBetween('created_at', [$request->date_from, $request->date_to])
-            ->whereIn('customer_id',$customer_ids)
+        $cc_query = CustomerCCRating::whereBetween('created_at', [$request->date_from, $request->date_to])
+            ->whereIn('customer_id', $customer_ids)
             ->when($request->sex, function ($query, $sex) {
                 $query->whereHas('customer', function ($query) use ($sex) {
                     $query->where('sex', $sex);
@@ -142,9 +182,6 @@ class ReportController extends Controller
 
         //calculate CC
         $cc_data = $this->calculateCC($cc_query);
-
-        // $date_range = CustomerAttributeRating::whereIn('customer_id',$customer_ids)
-        //                                      ->whereBetween('created_at', [$request->date_from, $request->date_to])->get(); 
         
         $date_range = CustomerAttributeRating::whereIn('customer_id', $customer_ids)
             ->whereBetween('created_at', [$request->date_from, $request->date_to])
@@ -160,8 +197,7 @@ class ReportController extends Controller
             })
             ->get();
 
-
-        $customer_recommendation_ratings = CustomerRecommendationRating::whereIn('customer_id',$customer_ids)
+        $customer_recommendation_ratings = CustomerRecommendationRating::whereIn('customer_id', $customer_ids)
             ->whereBetween('created_at', [$request->date_from, $request->date_to])
             ->when($request->sex, function ($query, $sex) {
                 $query->whereHas('customer', function ($query) use ($sex) {
@@ -174,7 +210,7 @@ class ReportController extends Controller
                 });
             })
             ->get();   
-                       
+                    
         $dimensions = Dimension::all();
         $dimension_count = $dimensions->count();
 
@@ -182,15 +218,15 @@ class ReportController extends Controller
         $total_respondents = $date_range->groupBy('customer_id')->count();
 
         // total number of respondents/customer who rated VS/S
-        $total_vss_respondents = $date_range->where('rate_score', '>','3')->groupBy('customer_id')->count();
+        $total_vss_respondents = $date_range->where('rate_score', '>', '3')->groupBy('customer_id')->count();
         
         // total number of promoters or respondents who rated 9-10 in recommendation rating
-        $total_promoters = $customer_recommendation_ratings->where('recommend_rate_score', '>','8')->groupBy('customer_id')->count();
+        $total_promoters = $customer_recommendation_ratings->where('recommend_rate_score', '>', '8')->groupBy('customer_id')->count();
         
         // total number of detractors or respondents who rated 0-6 in recommendation rating
-        $total_detractors = $customer_recommendation_ratings->where('recommend_rate_score', '<','7')->groupBy('customer_id')->count();
+        $total_detractors = $customer_recommendation_ratings->where('recommend_rate_score', '<', '7')->groupBy('customer_id')->count();
 
-        $ilsr_grand_total =0;
+        $ilsr_grand_total = 0;
 
         // loop for getting importance ls rating grand total for ws rating calculation
         for ($dimensionId = 1; $dimensionId <= $dimension_count; $dimensionId++) {
@@ -205,14 +241,13 @@ class ReportController extends Controller
             $x_mi_total = $mi_total * 3; 
             $x_li_total = $li_total * 2; 
             $x_nai_total = $nai_total * 1;
-            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total  ; 
+            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total; 
 
-            // Importance Likert Scale RAting 
+            // Importance Likert Scale Rating 
             if($x_importance_total != 0){
                 $ilsr_total = $x_importance_total / $total_respondents;
-                $ilsr_grand_total =  $ilsr_grand_total + $ilsr_total;
+                $ilsr_grand_total = $ilsr_grand_total + $ilsr_total;
             }
-
         }
 
         // PART I : CUSTOMER RATING OF SERVICE QUALITY 
@@ -232,22 +267,22 @@ class ReportController extends Controller
         $x_n_total = 0; 
         $x_d_total = 0; 
         $x_vd_total = 0; 
-        $x_grand_total = 0 ; 
+        $x_grand_total = 0; 
 
         $likert_scale_rating_totals = [];
-        $lsr_total= 0;
-        $lsr_grand_total= 0;
+        $lsr_total = 0;
+        $lsr_grand_total = 0;
 
-         // PART II : IMPORTANCE OF THIS ATTRIBUTE 
+        // PART II : IMPORTANCE OF THIS ATTRIBUTE 
 
         //set importance rating score 
         $importance_rate_score_totals = [];
         $x_importance_totals = [];
-        $x_importance_total=0; 
+        $x_importance_total = 0; 
 
         $x_vi_total = 0; 
-        $x_i_total =0; 
-        $x_mi_total =0; 
+        $x_i_total = 0; 
+        $x_mi_total = 0; 
         $x_li_total = 0; 
         $x_nai_total = 0;
 
@@ -255,11 +290,11 @@ class ReportController extends Controller
         $ilsr_total = 0;
 
         $gap_totals = [];
-        $gap_total = 0 ;
-        $gap_grand_total=0;
-        $ss_total= 0;
+        $gap_total = 0;
+        $gap_grand_total = 0;
+        $ss_total = 0;
         $ss_totals = [];
-        $wf_total= 0;
+        $wf_total = 0;
         $wf_totals = [];
         $ws_total = 0;
         $ws_totals = [];
@@ -272,17 +307,17 @@ class ReportController extends Controller
             $n_total = $date_range->where('rate_score', 3)->where('dimension_id', $dimensionId)->count();
             $d_total = $date_range->where('rate_score', 2)->where('dimension_id', $dimensionId)->count();
             $vd_total = $date_range->where('rate_score', 1)->where('dimension_id', $dimensionId)->count();          
-       
+    
             $x_vs_total = $vs_total * 5; 
             $x_s_total = $s_total * 4; 
             $x_n_total = $n_total * 3; 
             $x_d_total = $d_total * 2; 
             $x_vd_total = $vd_total * 1; 
 
-             // sum of all repondent with rate_score 1-5
-             $x_respondents_total =  $vs_total +   $x_s_total + $n_total +  $d_total +  $vd_total;
-            $x_grand_total = $x_vs_total + $x_s_total + $x_n_total + $x_d_total + $x_vd_total  ; 
-         
+            // sum of all repondent with rate_score 1-5
+            $x_respondents_total = $vs_total + $s_total + $n_total + $d_total + $vd_total;
+            $x_grand_total = $x_vs_total + $x_s_total + $x_n_total + $x_d_total + $x_vd_total; 
+        
             // right side total score divided by total repondents or customers
             if($x_grand_total != 0){
                 if($dimensionId == 6){
@@ -292,7 +327,7 @@ class ReportController extends Controller
                     $lsr_total = $x_grand_total / $total_respondents;
                 }
             }
-           
+        
             // SS = lsr with 3 decimals
             $ss_total = number_format($lsr_total, 3);
             $ss_totals[$dimensionId] = [
@@ -300,7 +335,7 @@ class ReportController extends Controller
             ];
 
             //likert sclae rating grandtotal
-            $lsr_grand_total =  $lsr_grand_total + $lsr_total;
+            $lsr_grand_total = $lsr_grand_total + $lsr_total;
             $x_totals[$dimensionId] = [
                 'x_total_score' => $x_grand_total,
             ];
@@ -319,12 +354,12 @@ class ReportController extends Controller
                 'vd_total' => $vd_total,
             ];
 
-            $grand_vs_total+=$vs_total;
-            $grand_s_total+=$s_total;
-            $grand_n_total+=$n_total;
-            $grand_d_total+=$d_total;
-            $grand_vd_total+=$vd_total;       
-                     
+            $grand_vs_total += $vs_total;
+            $grand_s_total += $s_total;
+            $grand_n_total += $n_total;
+            $grand_d_total += $d_total;
+            $grand_vd_total += $vd_total;       
+                    
             // PART III
             $vi_total = $date_range->where('importance_rate_score', 5)->where('dimension_id', $dimensionId)->count();
             $i_total = $date_range->where('importance_rate_score', 4)->where('dimension_id', $dimensionId)->count();
@@ -345,14 +380,14 @@ class ReportController extends Controller
             $x_mi_total = $mi_total * 3; 
             $x_li_total = $li_total * 2; 
             $x_nai_total = $nai_total * 1;
-            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total  ; 
+            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total; 
             
             //right side total importance rate scores 
             $x_importance_totals[$dimensionId] = [
                 'x_importance_total_score' => $x_importance_total,
             ];
             
-            // Likert Scale RAting 
+            // Likert Scale Rating 
             if($x_importance_total != 0){
                 $ilsr_total = $x_importance_total / $total_respondents;
             }
@@ -361,9 +396,9 @@ class ReportController extends Controller
             $importance_ilsr_totals[$dimensionId] = [
                 'ilsr_total' => $ilsr_total,
             ];
- 
+
             // GAP = attributes total score minus importance of attributes total score
-            $gap_total=  $ilsr_total - $lsr_total;
+            $gap_total = $ilsr_total - $lsr_total;
             $gap_total = number_format($gap_total, 2);
 
             $gap_totals[$dimensionId] = [
@@ -373,9 +408,9 @@ class ReportController extends Controller
             $gap_grand_total += $gap_total;
             $gap_grand_total = number_format($gap_grand_total, 2);
 
-            // WF = (importance LS Rating divided by importance grand total  of ls rating) * 100
+            // WF = (importance LS Rating divided by importance grand total of ls rating) * 100
             if($ilsr_total != 0){
-                $wf_total =  ($ilsr_total / $ilsr_grand_total) * 100;
+                $wf_total = ($ilsr_total / $ilsr_grand_total) * 100;
             }
             $wf_total = number_format($wf_total, 2);
             $wf_totals[$dimensionId] = [
@@ -386,7 +421,7 @@ class ReportController extends Controller
             $ws_total = ($ss_total * $wf_total) / 100;   
 
             $ws_total = number_format($ws_total, 2);
-            $ws_grand_total +=  $ws_total;
+            $ws_grand_total += $ws_total;
             $ws_grand_total = number_format($ws_grand_total, 2);
             $ws_totals[$dimensionId] = [
                 'ws_total' => $ws_total,
@@ -394,41 +429,41 @@ class ReportController extends Controller
         }
 
         // round off Likert Scale Rating grand total and control decimal to 2 
-        $lsr_grand_total = ($lsr_grand_total/ $dimension_count);
+        $lsr_grand_total = ($lsr_grand_total / $dimension_count);
         $lsr_grand_total = number_format($lsr_grand_total, 2);    
 
         // table below total score
-        $grand_vs_total =   $grand_vs_total * 5;
-        $grand_s_total =   $grand_s_total * 5;
-        $grand_n_total =   $grand_n_total * 5;
-        $grand_d_total =   $grand_d_total * 5;
-        $grand_vd_total =   $grand_vd_total * 5;
+        $grand_vs_total = $grand_vs_total * 5;
+        $grand_s_total = $grand_s_total * 5;
+        $grand_n_total = $grand_n_total * 5;
+        $grand_d_total = $grand_d_total * 5;
+        $grand_vd_total = $grand_vd_total * 5;
 
-        $x_grand_total =  $grand_vs_total +  $grand_s_total + $grand_n_total +  $grand_d_total +   $grand_vd_total;
+        $x_grand_total = $grand_vs_total + $grand_s_total + $grand_n_total + $grand_d_total + $grand_vd_total;
 
         //Percentage of Respondents/Customers who rated VS/S: 
         // = total no. of respondents / total no. respondets who rated vs/s * 100
-        $percentage_vss_respondents  = 0;
+        $percentage_vss_respondents = 0;
         if($total_respondents != 0 || $total_vss_respondents != 0){
-            $percentage_vss_respondents  = ($total_vss_respondents / $total_respondents) * 100;
+            $percentage_vss_respondents = ($total_vss_respondents / $total_respondents) * 100;
         }
-        $percentage_vss_respondents = number_format( $percentage_vss_respondents , 2);
+        $percentage_vss_respondents = number_format($percentage_vss_respondents, 2);
 
         $customer_satisfaction_rating = 0;
         if($total_respondents != 0 || $total_vss_respondents != 0){
-            $customer_satisfaction_rating = (($grand_vs_total+$grand_s_total)/$x_grand_total) * 100;
+            $customer_satisfaction_rating = (($grand_vs_total + $grand_s_total) / $x_grand_total) * 100;
         }
-        $customer_satisfaction_rating = number_format( $customer_satisfaction_rating , 2);
+        $customer_satisfaction_rating = number_format($customer_satisfaction_rating, 2);
 
         // Customer Satisfaction Index (CSI) = (ws grand total / 5) * 100
         $customer_satisfaction_index = 0;
         if($ws_grand_total != 0){
-            $customer_satisfaction_index = ($ws_grand_total/5) * 100;
+            $customer_satisfaction_index = ($ws_grand_total / 5) * 100;
         }
         $customer_satisfaction_index = number_format($customer_satisfaction_index, 2);
 
         if($customer_satisfaction_index > 100){
-            $customer_satisfaction_index = number_format(100 , 2);
+            $customer_satisfaction_index = number_format(100, 2);
         }
 
         //Percentage of Promoters = number of promoters / total respondents
@@ -437,44 +472,52 @@ class ReportController extends Controller
             $percentage_promoters = number_format((($total_promoters / $total_respondents) * 100), 2);
         }
 
-        //Percentage of Promoters = number of promoters / total respondents
+        //Percentage of Detractors = number of detractors / total respondents
         $percentage_detractors = 0;
         if($total_respondents != 0){
-            $percentage_detractors = number_format((($total_detractors / $total_respondents) * 100),2);
+            $percentage_detractors = number_format((($total_detractors / $total_respondents) * 100), 2);
         }
 
         // Net Promotion Scores(NPS) = Percentage of Promoters−Percentage of Detractors
-        $net_promoter_score =  number_format(($percentage_promoters - $percentage_detractors),2);
-  
+        $net_promoter_score = number_format(($percentage_promoters - $percentage_detractors), 2);
+
+        // Get section data if it exists
+        $section = null;
+        if ($section_id) {
+            $section = $request->section;
+        }
+        
+        // Get service data
+        $service = $this->getServiceById($service_id);
 
         //send response to front end
         return Inertia::render('CSI/Index')    
             ->with('user', $user)
             ->with('assignatorees', $assignatorees)
             ->with('cc_data', $cc_data) 
-            ->with('sub_section', $sub_section)
+            ->with('services', $services)
             ->with('sub_section_types', $sub_section_types)
             ->with('dimensions', $dimensions)
             ->with('division', $request->division)
-            ->with('section', $request->section)
-            ->with('y_totals',$y_totals)
-            ->with('grand_vs_total',$grand_vs_total)
-            ->with('grand_s_total',$grand_s_total)
-            ->with('grand_n_total',$grand_n_total)
-            ->with('grand_d_total',$grand_d_total)
-            ->with('grand_vd_total',$grand_vd_total)
-            ->with('x_totals',$x_totals)
-            ->with('x_grand_total',$x_grand_total)
-            ->with('likert_scale_rating_totals',$likert_scale_rating_totals)
-            ->with('lsr_grand_total',$lsr_grand_total)
-            ->with('importance_rate_score_totals',$importance_rate_score_totals)
+            ->with('section', $section)
+            ->with('service', $service)
+            ->with('y_totals', $y_totals)
+            ->with('grand_vs_total', $grand_vs_total)
+            ->with('grand_s_total', $grand_s_total)
+            ->with('grand_n_total', $grand_n_total)
+            ->with('grand_d_total', $grand_d_total)
+            ->with('grand_vd_total', $grand_vd_total)
+            ->with('x_totals', $x_totals)
+            ->with('x_grand_total', $x_grand_total)
+            ->with('likert_scale_rating_totals', $likert_scale_rating_totals)
+            ->with('lsr_grand_total', $lsr_grand_total)
+            ->with('importance_rate_score_totals', $importance_rate_score_totals)
             ->with('x_importance_totals', $x_importance_totals)
             ->with('importance_ilsr_totals', $importance_ilsr_totals)
             ->with('gap_totals', $gap_totals)
             ->with('gap_grand_total', $gap_grand_total)
             ->with('wf_totals', $wf_totals)
             ->with('ss_totals', $ss_totals)
-            ->with('wf_totals', $wf_totals)
             ->with('ws_totals', $ws_totals)
             ->with('total_respondents', $total_respondents)
             ->with('total_vss_respondents', $total_vss_respondents)
@@ -485,34 +528,43 @@ class ReportController extends Controller
             ->with('percentage_promoters', $percentage_promoters)
             ->with('percentage_detractors', $percentage_detractors)
             ->with('request', $request);    
-    }   
+    }
 
-
+       
     public function generateCSIBySectionMonthly($request, $office_id)
     {
         $sub_section = $this->getSubSection($request);
         $sub_section_types = $this->getSubSectionTypes($request);
-
+        $services = $this->getServices($request);
+    
         //get user
         $user = Auth::user();
-         //get assignatoree list
-         $assignatorees = Assignatorees::all();
-
+        //get assignatoree list
+        $assignatorees = Assignatorees::all();
+    
         $date_range = null;
         $customer_recommendation_ratings = null;
         $respondents_list = null;
-
+    
         $division_id = $request->division['id'];
-        $section_id = $request->section_id;
-        $sub_section_id = $request->selected_sub_section;
+        $has_sections = $request->has_sections ?? false;
+        $section_id = $request->section_id ?? null;
+        $service_id = $request->service_id ?? null;
+        $sub_section_id = $request->selected_sub_section ?? null;
         $client_type = $request->client_type; 
         $sub_section_type = $request->sub_section_type; 
-
-        // search and check list of forms query  
-        $customer_ids = $this->querySearchCSF($office_id, $division_id, $section_id ,$sub_section_id, $client_type, $sub_section_type );
-      
+    
+        // Determine query parameters based on new structure
+        if ($has_sections) {
+            // Division with sections -> section with services
+            $customer_ids = $this->querySearchCSF($office_id, $division_id, $section_id, $sub_section_id, $client_type, $sub_section_type, $service_id);
+        } else {
+            // Division directly with services
+            $customer_ids = $this->querySearchCSFByService($office_id, $division_id, $service_id, $client_type);
+        }
+            
         $numericMonth = Carbon::parse("1 {$request->selected_month}")->format('m');
-
+    
         $cc_query = CustomerCCRating::whereMonth('created_at', $numericMonth)
                                     ->whereYear('created_at', $request->selected_year)
                                     ->whereIn('customer_id',$customer_ids)
@@ -526,15 +578,14 @@ class ReportController extends Controller
                                             $query->where('age_group', $age_group);
                                         });
                                     });
-
+    
         //calculate Citizen's Charter
         $cc_data = $this->calculateCC($cc_query);
-
-
-        //$date_range = CustomerAttributeRating::whereMonth('created_at', $numericMonth)->get();
+    
         $date_range = CustomerAttributeRating::whereIn('customer_id', $customer_ids)
-                                             ->whereMonth('created_at', $numericMonth)
-                                             ->when($request->sex, function ($query, $sex) {
+                                                ->whereMonth('created_at', $numericMonth)
+                                                ->whereYear('created_at', $request->selected_year)
+                                                ->when($request->sex, function ($query, $sex) {
                                                 $query->whereHas('customer', function ($query) use ($sex) {
                                                     $query->where('sex', $sex);
                                                 });
@@ -545,9 +596,10 @@ class ReportController extends Controller
                                                 });
                                             })
                                             ->get();
-
+    
         $customer_recommendation_ratings = CustomerRecommendationRating::whereIn('customer_id', $customer_ids)
                                             ->whereMonth('created_at', $numericMonth)
+                                            ->whereYear('created_at', $request->selected_year)
                                             ->when($request->sex, function ($query, $sex) {
                                                 $query->whereHas('customer', function ($query) use ($sex) {
                                                     $query->where('sex', $sex);
@@ -561,15 +613,17 @@ class ReportController extends Controller
                                             ->get();
         // List of Respondents/Customers
         $respondents_list = CustomerAttributeRating::whereIn('customer_id', $customer_ids)
-                                                    ->whereMonth('created_at', $numericMonth)->get();
-           
+                                                    ->whereMonth('created_at', $numericMonth)
+                                                    ->whereYear('created_at', $request->selected_year)
+                                                    ->get();
+            
         // Dimensions or attributes
         $dimensions = Dimension::all();
         $dimension_count = $dimensions->count();
-
+    
         // total number of respondents/customer
         $total_respondents = $date_range->groupBy('customer_id')->count();
-
+    
         // total number of respondents/customer who rated VS/S
         $total_vss_respondents = $date_range->where('rate_score', '>','3')->groupBy('customer_id')->count();
         
@@ -578,8 +632,8 @@ class ReportController extends Controller
         
         // total number of detractors or respondents who rated 0-6 in recommendation rating
         $total_detractors = $customer_recommendation_ratings->where('recommend_rate_score', '<','7')->groupBy('customer_id')->count();
-
-        $ilsr_grand_total =0;
+    
+        $ilsr_grand_total = 0;
         // loop for getting importance ls rating grand total for ws rating calculation
         for ($dimensionId = 1; $dimensionId <= $dimension_count; $dimensionId++) {
             $vi_total = $date_range->where('importance_rate_score', 5)->where('dimension_id', $dimensionId)->count();
@@ -587,24 +641,23 @@ class ReportController extends Controller
             $mi_total = $date_range->where('importance_rate_score', 3)->where('dimension_id', $dimensionId)->count();
             $li_total = $date_range->where('importance_rate_score', 2)->where('dimension_id', $dimensionId)->count();
             $nai_total = $date_range->where('importance_rate_score', 1)->where('dimension_id', $dimensionId)->count();
-
+    
             $x_vi_total = $vi_total * 5; 
             $x_i_total = $i_total * 4; 
             $x_mi_total = $mi_total * 3; 
             $x_li_total = $li_total * 2; 
             $x_nai_total = $nai_total * 1;
-            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total  ; 
-
+            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total; 
+    
             // Importance Likert Scale RAting 
-            if($x_importance_total != 0){
+            if ($total_respondents > 0 && $x_importance_total != 0) {
                 $ilsr_total = $x_importance_total / $total_respondents;
-                $ilsr_grand_total =  $ilsr_grand_total + $ilsr_total;
+                $ilsr_grand_total = $ilsr_grand_total + $ilsr_total;
             }
-
         }
-
+    
         // PART II : CUSTOMER RATING OF SERVICE QUALITY 
-
+    
         //set initial value of buttom side total scores
         $y_totals = [];
         $grand_na_total = 0;
@@ -621,92 +674,87 @@ class ReportController extends Controller
         $x_n_total = 0; 
         $x_d_total = 0; 
         $x_vd_total = 0; 
-        $x_grand_total = 0 ; 
-
+        $x_grand_total = 0; 
+    
         $likert_scale_rating_totals = [];
-        $lsr_total= 0;
-        $lsr_grand_total= 0;
-
-         // PART II : IMPORTANCE OF THIS ATTRIBUTE 
-
+        $lsr_total = 0;
+        $lsr_grand_total = 0;
+    
+        // PART II : IMPORTANCE OF THIS ATTRIBUTE 
+    
         //set importance rating score 
         $importance_rate_score_totals = [];
         $x_importance_totals = [];
-        $x_importance_total=0; 
-
+        $x_importance_total = 0; 
+    
         $x_vi_total = 0; 
-        $x_i_total =0; 
-        $x_mi_total =0; 
+        $x_i_total = 0; 
+        $x_mi_total = 0; 
         $x_li_total = 0; 
         $x_nai_total = 0;
-
+    
         $importance_ilsr_totals = [];
         $ilsr_total = 0;
-
+    
         $gap_totals = [];
-        $gap_total = 0 ;
-        $gap_grand_total=0;
-        $ss_total= 0;
+        $gap_total = 0;
+        $gap_grand_total = 0;
+        $ss_total = 0;
         $ss_totals = [];
-        $wf_total= 0;
+        $wf_total = 0;
         $wf_totals = [];
-        $ws_total= 0;
+        $ws_total = 0;
         $ws_totals = [];
         $ws_grand_total = 0;
-
+    
         for ($dimensionId = 1; $dimensionId <= $dimension_count; $dimensionId++) {
             //PART I :
-
             $na_total = $date_range->where('rate_score', 6)->where('dimension_id', $dimensionId)->count(); 
-
+    
             $vs_total = $date_range->where('rate_score', 5)->where('dimension_id', $dimensionId)->count();
             $s_total = $date_range->where('rate_score', 4)->where('dimension_id', $dimensionId)->count();
             $n_total = $date_range->where('rate_score', 3)->where('dimension_id', $dimensionId)->count();
             $d_total = $date_range->where('rate_score', 2)->where('dimension_id', $dimensionId)->count();
             $vd_total = $date_range->where('rate_score', 1)->where('dimension_id', $dimensionId)->count(); 
-
-            //check if there are respondent who rate 3 or below and add it if theres
-
+    
             // calculation for total score per dimension
             $x_vs_total = $vs_total * 5; 
             $x_s_total = $s_total * 4; 
             $x_n_total = $n_total * 3; 
             $x_d_total = $d_total * 2; 
             $x_vd_total = $vd_total * 1; 
-
+    
             // sum of all repondent with rate_score 1-5
-            $x_respondents_total =  $vs_total +   $x_s_total + $n_total +  $d_total +  $vd_total;
+            $x_respondents_total = $vs_total + $s_total + $n_total + $d_total + $vd_total;
             $x_grand_total = $x_vs_total + $x_s_total + $x_n_total + $x_d_total + $x_vd_total; 
-  
+    
             // right side total score divided by total repondents or customers
-            if($x_grand_total != 0){
-                if($dimensionId == 6){
-                    $lsr_total = $x_grand_total / $x_respondents_total;
-                }
-                else{
-                    $lsr_total = $x_grand_total / $total_respondents;
+            if ($x_grand_total != 0) {
+                if ($dimensionId == 6) {
+                    $lsr_total = $x_respondents_total > 0 ? $x_grand_total / $x_respondents_total : 0;
+                } else {
+                    $lsr_total = $total_respondents > 0 ? $x_grand_total / $total_respondents : 0;
                 }
             }
-           
+            
             // SS = lsr with 3 decimals
             $ss_total = number_format($lsr_total, 3);
             $ss_totals[$dimensionId] = [
                 'ss_total' => $ss_total,
             ];
-
-            //likert sclae rating grandtotal
-
-            $lsr_grand_total =  $lsr_grand_total + $lsr_total;
+    
+            //likert scale rating grandtotal
+            $lsr_grand_total = $lsr_grand_total + $lsr_total;
             $x_totals[$dimensionId] = [
                 'x_total_score' => $x_grand_total,
             ];
-
+    
             $lsr_total = number_format($lsr_total, 2);
-
+    
             $likert_scale_rating_totals[$dimensionId] = [
                 'lsr_total' => $lsr_total,
             ];
-
+    
             $y_totals[$dimensionId] = [
                 'vs_total' => $vs_total,
                 's_total' => $s_total,
@@ -714,15 +762,15 @@ class ReportController extends Controller
                 'd_total' => $d_total,
                 'vd_total' => $vd_total,
             ];
-         
-            $grand_na_total+=$na_total;  
-
-            $grand_vs_total+=$vs_total;
-            $grand_s_total+=$s_total;
-            $grand_n_total+=$n_total;
-            $grand_d_total+=$d_total;
-            $grand_vd_total+=$vd_total;       
-                     
+            
+            $grand_na_total += $na_total;  
+    
+            $grand_vs_total += $vs_total;
+            $grand_s_total += $s_total;
+            $grand_n_total += $n_total;
+            $grand_d_total += $d_total;
+            $grand_vd_total += $vd_total;       
+                        
             // PART II :
             $vi_total = $date_range->where('importance_rate_score', 5)->where('dimension_id', $dimensionId)->count();
             $i_total = $date_range->where('importance_rate_score', 4)->where('dimension_id', $dimensionId)->count();
@@ -737,49 +785,49 @@ class ReportController extends Controller
                 'li_total' => $li_total,
                 'nai_total' => $nai_total,
             ];
-
+    
             $x_vi_total = $vi_total * 5; 
             $x_i_total = $i_total * 4; 
             $x_mi_total = $mi_total * 3; 
             $x_li_total = $li_total * 2; 
             $x_nai_total = $nai_total * 1;
-            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total  ; 
+            $x_importance_total = $x_vi_total + $x_i_total + $x_mi_total + $x_li_total + $x_nai_total; 
             
             //right side total importance rate scores 
             $x_importance_totals[$dimensionId] = [
                 'x_importance_total_score' => $x_importance_total,
             ];
             
-            // Likert Scale RAting 
-            if($x_importance_total != 0){
+            // Likert Scale Rating 
+            if ($total_respondents > 0 && $x_importance_total != 0) {
                 $ilsr_total = $x_importance_total / $total_respondents;
             }
             $ilsr_total = number_format($ilsr_total, 2);
-
+    
             $importance_ilsr_totals[$dimensionId] = [
                 'ilsr_total' => $ilsr_total,
             ];
- 
+    
             // GAP = attributes total score minus importance of attributes total score
-            $gap_total=  $ilsr_total - $lsr_total;
+            $gap_total = $ilsr_total - $lsr_total;
             $gap_total = number_format($gap_total, 2);
-
+    
             $gap_totals[$dimensionId] = [
                 'gap_total' => $gap_total,
             ];
-
+    
             $gap_grand_total += $gap_total;
             $gap_grand_total = number_format($gap_grand_total, 2);
-
-            // WF = (importance LS Rating divided by importance grand total  of ls rating) * 100
-            if($ilsr_total != 0){
-                $wf_total =  ($ilsr_total / $ilsr_grand_total) * 100;
+    
+            // WF = (importance LS Rating divided by importance grand total of ls rating) * 100
+            if ($ilsr_grand_total > 0 && $ilsr_total != 0) {
+                $wf_total = ($ilsr_total / $ilsr_grand_total) * 100;
             }
             $wf_total = number_format($wf_total, 2);
             $wf_totals[$dimensionId] = [
                 'wf_total' => $wf_total,
             ];
-
+    
             // WS = (SS * WF) / 100  
             $ws_total = ($ss_total * $wf_total) / 100;   
             $ws_grand_total = $ws_grand_total + $ws_total;
@@ -788,137 +836,139 @@ class ReportController extends Controller
             $ws_totals[$dimensionId] = [
                 'ws_total' => $ws_total,
             ];
-
-          
-
         }
-
+    
         //Calculate total number of respondents/customer who rated VS/S
-        // Formula ----> get the sum of total respondents for each dimension who rated VS or S and divide it to dimension total count
-        // here is 9 because I include the overall data in the dimensions
-
-        $vss_total = $grand_vs_total +  $grand_s_total + $grand_na_total;
-        $total_vss_respondents = $vss_total / $dimension_count;     
+        $vss_total = $grand_vs_total + $grand_s_total + $grand_na_total;
+        $total_vss_respondents = $dimension_count > 0 ? $vss_total / $dimension_count : 0;     
         $total_vss_respondents = round($total_vss_respondents);      
-
+    
         // round off Likert Scale Rating grand total and control decimal to 2 
-        $lsr_grand_total = ($lsr_grand_total/ $dimension_count);
+        $lsr_grand_total = $dimension_count > 0 ? ($lsr_grand_total / $dimension_count) : 0;
         $lsr_grand_total = number_format($lsr_grand_total, 2);      
         
-
         // table below TOTAL SCORES
-        $grand_vs_total =   $grand_vs_total * 5;
-        $grand_s_total =   $grand_s_total * 4;
-        $grand_n_total =   $grand_n_total * 3;
-        $grand_d_total =   $grand_d_total * 2;
-        $grand_vd_total =   $grand_vd_total * 1;
-
-
-        $x_grand_total =  $grand_vs_total +  $grand_s_total + $grand_n_total +  $grand_d_total +   $grand_vd_total;
-
- 
+        $grand_vs_total = $grand_vs_total * 5;
+        $grand_s_total = $grand_s_total * 4;
+        $grand_n_total = $grand_n_total * 3;
+        $grand_d_total = $grand_d_total * 2;
+        $grand_vd_total = $grand_vd_total * 1;
+    
+        $x_grand_total = $grand_vs_total + $grand_s_total + $grand_n_total + $grand_d_total + $grand_vd_total;
+    
         //Percentage of Respondents/Customers who rated VS/S: 
-        // = total no. of respondents / total no. respondets who rated vs/s * 100
-        $percentage_vss_respondents  = 0;
-        if($total_respondents != 0){
-            $percentage_vss_respondents  = ($total_vss_respondents/$total_respondents) * 100;
+        $percentage_vss_respondents = 0;
+        if ($total_respondents > 0) {
+            $percentage_vss_respondents = ($total_vss_respondents / $total_respondents) * 100;
         }
-        $percentage_vss_respondents = number_format( $percentage_vss_respondents , 2);
-
+        $percentage_vss_respondents = number_format($percentage_vss_respondents, 2);
+    
         $customer_satisfaction_rating = 0;
-        if($total_vss_respondents != 0){
-            $customer_satisfaction_rating = (($grand_vs_total+$grand_s_total)/$x_grand_total) * 100;
+        if ($x_grand_total > 0) {
+            $customer_satisfaction_rating = (($grand_vs_total + $grand_s_total) / $x_grand_total) * 100;
         }
-        $customer_satisfaction_rating = number_format( $customer_satisfaction_rating , 2);
-
+        $customer_satisfaction_rating = number_format($customer_satisfaction_rating, 2);
+    
         // Customer Satisfaction Index (CSI) = (ws grand total / 5) * 100
         $customer_satisfaction_index = 0;
-        if($ws_grand_total != 0){
-            $customer_satisfaction_index = ($ws_grand_total/5) * 100;
+        if ($ws_grand_total > 0) {
+            $customer_satisfaction_index = ($ws_grand_total / 5) * 100;
         }
-        $customer_satisfaction_index = number_format($customer_satisfaction_index , 2);
-
-        if($customer_satisfaction_index > 100){
-            $customer_satisfaction_index = number_format(100 , 2);
+        $customer_satisfaction_index = number_format($customer_satisfaction_index, 2);
+    
+        if ($customer_satisfaction_index > 100) {
+            $customer_satisfaction_index = number_format(100, 2);
         }
-
+    
         //Percentage of Promoters = number of promoters / total respondents
         $percentage_promoters = 0;
-        if($total_promoters != 0){
+        if ($total_respondents > 0 && $total_promoters > 0) {
             $percentage_promoters = number_format((($total_promoters / $total_respondents) * 100), 2);
         }
-
-        //Percentage of Promoters = number of promoters / total respondents
+    
+        //Percentage of Detractors = number of detractors / total respondents
         $percentage_detractors = 0;
-        if($total_detractors != 0){
-            $percentage_detractors = number_format((($total_detractors / $total_respondents) * 100),2);
+        if ($total_respondents > 0 && $total_detractors > 0) {
+            $percentage_detractors = number_format((($total_detractors / $total_respondents) * 100), 2);
         }
-
+    
         // Net Promotion Scores(NPS) = Percentage of Promoters−Percentage of Detractors
-        $net_promoter_score =  number_format(($percentage_promoters - $percentage_detractors),2);
+        $net_promoter_score = number_format(($percentage_promoters - $percentage_detractors), 2);
+        
         //Respondents list
         $data = CARResource::collection($respondents_list);
-
-        //comments and  complaints
+    
+        //comments and complaints
         $comment_list = CustomerComment::whereIn('customer_id', $customer_ids)
                                     ->whereMonth('created_at', $numericMonth)
                                     ->whereYear('created_at', $request->selected_year)->get();
         
-        $comments = $comment_list->where('comment','!=','')->pluck('comment'); 
-
-        $total_comments = $comment_list->where('comment','!=','')->count();
-        $total_complaints = $comment_list->where('is_complaint',1)->count();
-
-
-        //send response to front end
-        return Inertia::render('CSI/Index')
-            ->with('user', $user)
-            ->with('cc_data', $cc_data)
-            ->with('assignatorees', $assignatorees)
-            ->with('section', $request->section)
-            ->with('sub_section', $sub_section)
-            ->with('sub_section_types', $sub_section_types)
-            ->with('dimensions', $dimensions)
-            ->with('division', $request->division)
-            ->with('respondents_list',$data)
-            ->with('y_totals',$y_totals)
-            ->with('grand_vs_total',$grand_vs_total)
-            ->with('grand_s_total',$grand_s_total)
-            ->with('grand_n_total',$grand_n_total)
-            ->with('grand_d_total',$grand_d_total)
-            ->with('grand_vd_total',$grand_vd_total)
-            ->with('x_totals',$x_totals)
-            ->with('x_grand_total',$x_grand_total)
-            ->with('likert_scale_rating_totals',$likert_scale_rating_totals)
-            ->with('lsr_grand_total',$lsr_grand_total)
-            ->with('importance_rate_score_totals',$importance_rate_score_totals)
-            ->with('x_importance_totals', $x_importance_totals)
-            ->with('importance_ilsr_totals', $importance_ilsr_totals)
-            ->with('gap_totals', $gap_totals)
-            ->with('gap_grand_total', $gap_grand_total)
-            ->with('wf_totals', $wf_totals)
-            ->with('ss_totals', $ss_totals)
-            ->with('wf_totals', $wf_totals)
-            ->with('ws_totals', $ws_totals)
-            ->with('total_respondents', $total_respondents)
-            ->with('total_vss_respondents', $total_vss_respondents)
-            ->with('percentage_vss_respondents', $percentage_vss_respondents)
-            ->with('customer_satisfaction_rating', $customer_satisfaction_rating)
-            ->with('customer_satisfaction_index', $customer_satisfaction_index)
-            ->with('net_promoter_score', $net_promoter_score)
-            ->with('percentage_promoters', $percentage_promoters)
-            ->with('percentage_detractors', $percentage_detractors)
-            ->with('total_comments', $total_comments)
-            ->with('total_complaints', $total_complaints)
-            ->with('comments', $comments)
-            ->with('request', $request);    
-    }   
+        $comments = $comment_list->where('comment', '!=', '')->pluck('comment'); 
+    
+        $total_comments = $comment_list->where('comment', '!=', '')->count();
+        $total_complaints = $comment_list->where('is_complaint', 1)->count();
+    
+        // Determine which structure to pass based on the request
+        $response_data = [
+            'user' => $user,
+            'cc_data' => $cc_data,
+            'assignatorees' => $assignatorees,
+            'division' => $request->division,
+            'dimensions' => $dimensions,
+            'respondents_list' => $data,
+            'y_totals' => $y_totals,
+            'grand_vs_total' => $grand_vs_total,
+            'grand_s_total' => $grand_s_total,
+            'grand_n_total' => $grand_n_total,
+            'grand_d_total' => $grand_d_total,
+            'grand_vd_total' => $grand_vd_total,
+            'x_totals' => $x_totals,
+            'x_grand_total' => $x_grand_total,
+            'likert_scale_rating_totals' => $likert_scale_rating_totals,
+            'lsr_grand_total' => $lsr_grand_total,
+            'importance_rate_score_totals' => $importance_rate_score_totals,
+            'x_importance_totals' => $x_importance_totals,
+            'importance_ilsr_totals' => $importance_ilsr_totals,
+            'gap_totals' => $gap_totals,
+            'gap_grand_total' => $gap_grand_total,
+            'wf_totals' => $wf_totals,
+            'ss_totals' => $ss_totals,
+            'ws_totals' => $ws_totals,
+            'total_respondents' => $total_respondents,
+            'total_vss_respondents' => $total_vss_respondents,
+            'percentage_vss_respondents' => $percentage_vss_respondents,
+            'customer_satisfaction_rating' => $customer_satisfaction_rating,
+            'customer_satisfaction_index' => $customer_satisfaction_index,
+            'net_promoter_score' => $net_promoter_score,
+            'percentage_promoters' => $percentage_promoters,
+            'percentage_detractors' => $percentage_detractors,
+            'total_comments' => $total_comments,
+            'total_complaints' => $total_complaints,
+            'comments' => $comments,
+            'request' => $request,
+            'services' => $services
+        ];
+    
+        // Add section or service data based on the structure
+        if ($has_sections) {
+            $response_data['section'] = $request->section;
+            $response_data['sub_section'] = $sub_section;
+            $response_data['sub_section_types'] = $sub_section_types;
+            $response_data['service'] = $request->service ?? null;
+        } else {
+            $response_data['service'] = $request->service ?? null;
+        }
+    
+        return Inertia::render('CSI/Index')->with($response_data);
+    }
    
+  
     // QUARTERLY || FIRST, SECOND , THIRD AND FOURTH QUARTER
     public function generateCSIByQuarter($request, $office_id)
     {
         $sub_section = $this->getSubSection($request);
         $sub_section_types = $this->getSubSectionTypes($request);
+        $services = $this->getServices($request);
 
         //get user
         $user = Auth::user();
@@ -931,40 +981,40 @@ class ReportController extends Controller
       
             
         $division_id = $request->division['id'];
-        $section_id = $request->section_id;
+        $section_id = $request->section_id ?? null; // Make section_id optional
+        $service_id = $request->service_id ?? null; // Add service_id
         $sub_section_id = $request->selected_sub_section;
         $client_type = $request->client_type; 
-        $sub_section_type = $request->sub_section_type; 
+        $sub_section_type = $request->sub_section_type;
 
-       $startDate = null;
-       $endDate = null;
-       $numeric_first_month = 0;
-       $numeric_second_month = 0;
-       $numeric_third_month = 0;
+        $startDate = null;
+        $endDate = null;
+        $numeric_first_month = 0;
+        $numeric_second_month = 0;
+        $numeric_third_month = 0;
 
         // Retrieve records for the specified quarter and year
         switch($request->selected_quarter){
             case 'FIRST QUARTER':
                 $startDate = Carbon::create($request->selected_year, 1, 1)->startOfDay();
                 $endDate = Carbon::create($request->selected_year, 3, 31)->endOfDay();
-
+    
                 $numeric_first_month = 1;
                 $numeric_second_month = 2;
                 $numeric_third_month = 3;
-
             break;
             case 'SECOND QUARTER':
                 $startDate = Carbon::create($request->selected_year, 4, 1)->startOfDay();
-                $endDate = Carbon::create($request->selected_year, 5, 31)->endOfDay();
-
+                $endDate = Carbon::create($request->selected_year, 6, 30)->endOfDay(); // Fixed day count for June
+                
                 $numeric_first_month = 4;
                 $numeric_second_month = 5;
                 $numeric_third_month = 6;
             break;
             case 'THIRD QUARTER':
                 $startDate = Carbon::create($request->selected_year, 7, 1)->startOfDay();
-                $endDate = Carbon::create($request->selected_year, 9, 31)->endOfDay();
-
+                $endDate = Carbon::create($request->selected_year, 9, 30)->endOfDay(); // Fixed day count for September
+                
                 $numeric_first_month = 7;
                 $numeric_second_month = 8;
                 $numeric_third_month = 9;
@@ -972,12 +1022,11 @@ class ReportController extends Controller
             case 'FOURTH QUARTER':
                 $startDate = Carbon::create($request->selected_year, 10, 1)->startOfDay();
                 $endDate = Carbon::create($request->selected_year, 12, 31)->endOfDay();
-
+                
                 $numeric_first_month = 10;
                 $numeric_second_month = 11;
                 $numeric_third_month = 12;
             break;
-
             default:
                 dd('no quarter selected'); 
         }  
@@ -1518,6 +1567,18 @@ class ReportController extends Controller
         //Respondents list
         $data = CARResource::collection($respondents_list);
 
+        // Get the section or service name based on the request
+        $section = null;
+        $service = null;
+        
+        if ($section_id) {
+            $section = Section::find($section_id);
+        }
+        
+        if ($service_id) {
+            $service = Services::find($service_id);
+        }
+
         //send response to front end
         return Inertia::render('CSI/Index')
             ->with('cc_data', $cc_data)
@@ -1528,6 +1589,8 @@ class ReportController extends Controller
             ->with('dimensions', $dimensions)
             ->with('division', $request->division)
             ->with('section', $request->section)
+            ->with('service', $service) // Add service information
+            ->with('services', $services) // Add available services
             ->with('respondents_list',$data)
             ->with('trp_totals', $trp_totals)
             ->with('grand_total_raw_points', $grand_total_raw_points)
@@ -1727,12 +1790,14 @@ class ReportController extends Controller
    }
 
 
- 
+    //to change by service
     // YEARLY || ANNUALLY PER Section
     public function generateCSIBySectionYearly($request, $office_id)
     {
         $sub_section = $this->getSubSection($request);
         $sub_section_types = $this->getSubSectionTypes($request);
+        $services = $this->getServices($request); // New method to get services
+
 
         //get user
         $user = Auth::user();
@@ -1748,13 +1813,14 @@ class ReportController extends Controller
         $respondents_list = null;
           
         $division_id = $request->division['id'];
-        $section_id = $request->section_id;
+        $section_id = $request->section_id ?? null; // Make section_id optional
+        $service_id = $request->service_id ?? null; // Add service_id
         $sub_section_id = $request->selected_sub_section;
         $client_type = $request->client_type; 
-        $sub_section_type = $request->sub_section_type; 
+        $sub_section_type = $request->sub_section_type;
 
        // search and check list of forms query  
-       $customer_ids = $this->querySearchCSF( $office_id, $division_id, $section_id ,$sub_section_id , $client_type, $sub_section_type );
+       $customer_ids = $this->querySearchCSF($office_id, $division_id, $section_id, $service_id, $sub_section_id, $client_type, $sub_section_type);
             
         // Citizen's Charter
         $cc_query = CustomerCCRating::whereYear('created_at', $request->selected_year)
@@ -1775,16 +1841,16 @@ class ReportController extends Controller
 
         // Retrieve records for the specified quarter and year
         $q1_start_date = Carbon::create($request->selected_year, 1, 1)->startOfDay();
-        $q1_end_date = Carbon::create($request->selected_year, 3, 31)->endOfDay();
+    $q1_end_date = Carbon::create($request->selected_year, 3, 31)->endOfDay();
 
-        $q2_start_date = Carbon::create($request->selected_year, 4, 1)->startOfDay();
-        $q2_end_date = Carbon::create($request->selected_year, 6, 31)->endOfDay();
+    $q2_start_date = Carbon::create($request->selected_year, 4, 1)->startOfDay();
+    $q2_end_date = Carbon::create($request->selected_year, 6, 30)->endOfDay(); // Fixed day count for June
 
-        $q3_start_date = Carbon::create($request->selected_year, 7, 1)->startOfDay();
-        $q3_end_date = Carbon::create($request->selected_year, 9, 31)->endOfDay();
+    $q3_start_date = Carbon::create($request->selected_year, 7, 1)->startOfDay();
+    $q3_end_date = Carbon::create($request->selected_year, 9, 30)->endOfDay(); // Fixed day count for September
 
-        $q4_start_date = Carbon::create($request->selected_year, 10, 1)->startOfDay();
-        $q4_end_date = Carbon::create($request->selected_year, 12, 31)->endOfDay();
+    $q4_start_date = Carbon::create($request->selected_year, 10, 1)->startOfDay();
+    $q4_end_date = Carbon::create($request->selected_year, 12, 31)->endOfDay();
 
         $q1_date_range = CustomerAttributeRating::whereIn('customer_id', $customer_ids)
                                                 ->whereBetween('created_at', [$q1_start_date, $q1_end_date])
@@ -2431,6 +2497,8 @@ class ReportController extends Controller
             ->with('dimensions', $dimensions)
             ->with('division', $request->division)
             ->with('section', $request->section)
+            ->with('service', $service) // Add service information
+            ->with('services', $services) // Add available services
             ->with('respondents_list',$data)
             ->with('vs_totals', $vs_totals)
             ->with('s_totals', $s_totals)
@@ -2527,24 +2595,24 @@ class ReportController extends Controller
     }
 
     
-    public function getSubSection($request)
-    {
-         //get sub sections
-         $sub_section = SubSection::where('id',$request->selected_sub_section)->get();
-         return $sub_section;
+    // public function getSubSection($request)
+    // {
+    //      //get sub sections
+    //      $sub_section = SubSection::where('id',$request->selected_sub_section)->get();
+    //      return $sub_section;
     
-    }
+    // }
 
 
-    public function getSubSectionTypes($request)
-    {
-        //get sub section types
+    // public function getSubSectionTypes($request)
+    // {
+    //     //get sub section types
  
-       $sub_section_types = SubSectionType::where('sub_section_id', $request->selected_sub_section)->get(); 
+    //    $sub_section_types = SubSectionType::where('sub_section_id', $request->selected_sub_section)->get(); 
 
-       return $sub_section_types;
+    //    return $sub_section_types;
     
-    }
+    // }
 
     public function querySearchCSF($office_id, $division_id, $section_id , $sub_section_id , $client_type, $sub_section_type )
     {
@@ -2877,47 +2945,75 @@ class ReportController extends Controller
     }   
 
 
-    // all divisions and its sections view page
+    // all divisions and its sections view page --------> to change to division sections and services view page
     public function all_sections()
     {
-        //$user = Auth::user();
-        $division_sections = Division::all();
+        // Get all divisions
+        $divisions = Division::with(['sections', 'services' => function($query) {
+            // Only get services directly linked to divisions (without a section)
+            $query->whereNull('section_id');
+        }])->get();
 
-        //all Divisions and its sections
-        $data = DivisionResource::collection($divisioin_sections);
+        // Transform the data to include both section and service information
+        $data = $divisions->map(function($division) {
+            return [
+                'id' => $division->id,
+                'name' => $division->name,
+                'sections' => $division->sections->map(function($section) {
+                    return [
+                        'id' => $section->id,
+                        'name' => $section->name,
+                        // Include services for each section
+                        'services' => Service::where('section_id', $section->id)->get()->map(function($service) {
+                            return [
+                                'id' => $service->id,
+                                'name' => $service->name
+                            ];
+                        })
+                    ];
+                }),
+                // Include direct services (not associated with any section)
+                'direct_services' => $division->services->map(function($service) {
+                    return [
+                        'id' => $service->id,
+                        'name' => $service->name
+                    ];
+                })
+            ];
+        });
+
         return Inertia::render('CSI/AllDivisionSections/Index')
             ->with('division_sections', $data);
-    
     }
 
-
+    // to change to servicesReports
     public function generateAllSectionReports(Request $request)
     {
         //dd($request->all());
+       // Check the reporting period type
         if($request->csi_type == "By Month"){
-            return $this->generateCSIAllSectionMonthly($request); 
+            return $this->generateCSIAllServiceMonthly($request); 
         }
         else if($request->csi_type == "By Quarter"){
             if($request->selected_quarter == "FIRST QUARTER"){
-                return $this->generateCSIAllSectionFirstQuarter($request);
+                return $this->generateCSIAllServiceFirstQuarter($request);
             }
             else if($request->selected_quarter == "SECOND QUARTER"){
-                return $this->generateCSIAllSectionSecondQuarter($request);
+                return $this->generateCSIAllServiceSecondQuarter($request);
             }
             else if($request->selected_quarter == "THIRD QUARTER"){
-                return $this->generateCSIAllThirdQuarter($request);
+                return $this->generateCSIAllServiceThirdQuarter($request);
             }
             else if($request->selected_quarter == "FOURTH QUARTER"){
-                return $this->generateCSIAllSectionFourthQuarter($request);
+                return $this->generateCSIAllServiceFourthQuarter($request);
             }
-          
         }
         else if($request->csi_type == "By Year/Annual"){
-            return $this->generateCSIAllSectionYearly($request);  
+            return $this->generateCSIAllServiceYearly($request);  
         }
-    
     }
 
+    //to change to services
     public function generateCSIAllSectionMonthly($request)
     {
         //get user
@@ -2948,9 +3044,13 @@ class ReportController extends Controller
         $dimensions = Dimension::all();
         $dimension_count = $dimensions->count();
 
-        $division = Division::all();
+        $divisions = Division::with(['sections.services', 'services' => function($query) {
+            // Only get services directly linked to divisions (without a section)
+            $query->whereNull('section_id');
+        }])->get();
+        
         //all Divisions and its sections
-        $division_sections = DivsionResource::collection($divisions);
+        $division_sections = DivsionResource::collection($division);
 
 
         //OFFICE of the REGIONAL  DIRECTOR
@@ -3065,6 +3165,7 @@ class ReportController extends Controller
 
     }
 
+    // to change to services
     public function getAllSectionMonthlyCSI($request, $office_id, $numeric_month)
     {        
         // Dimensions or attributes

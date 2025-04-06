@@ -13,6 +13,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\SubSectionController;
 use App\Http\Controllers\SurveyFormController;
 use App\Http\Controllers\DivisionSectionController;
+use App\Http\Controllers\ServicesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,8 +37,11 @@ Route::get('/', function () {
 Route::get('/divisions/csf/offices', [SurveyFormController::class, 'offices_index'])->name('offices_index');
 Route::get('/divisions/csf/divisions', [SurveyFormController::class, 'divisions_index'])->name('divisions_index');
 Route::get('/divisions/csf/division_sections', [SurveyFormController::class, 'division_sections_index'])->name('division_sections_index');
-Route::get('/divisions/csf/section/sub-sections', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
-Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');
+Route::get('/divisions/csf/section_services_index', [SurveyFormController::class, 'section_services_index'])->name('section_services_index');
+// Route::get('/divisions/csf/section/sub-sections', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
+// Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');
+// Route::get('/divisions/csf/section/services', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
+// Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');
 Route::get('/divisions/csf', [SurveyFormController::class, 'index'])->name('csf_form');
 Route::get('/form/csf/msg', [SurveyFormController::class, 'msg_index'])->name('msg_index');
 Route::get('captcha/{config?}', '\Mews\Captcha\CaptchaController@getCaptcha')->middleware('web');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Section;
 use App\Models\Division;
+use App\Models\Services;
 use App\Models\Office;
 use App\Models\CSFForm;
 use App\Models\SubSection;
@@ -31,6 +32,7 @@ use App\Http\Resources\SubSectionType as SubSectionTypeResource;
 use App\Http\Resources\ShowDateCSFForm as ShowDateCSFFormResource;
 
 use App\Models\CustomerSignature;
+use App\Models\SubServices;
 
 class SurveyFormController extends Controller
 {
@@ -148,12 +150,12 @@ class SurveyFormController extends Controller
         $csf_form->customer_id = $customer->id;
         $csf_form->office_id = $request->office_id;
         $csf_form->division_id = $request->division_id;
+        $csf_form->service_id = $request->service_id;
         $csf_form->section_id = $request->section_id;
-        if($request->sub_section_id != "null"){
-            $csf_form->sub_section_id = $request->sub_section_id;
+        if($request->sub_service_id != "null"){
+            $csf_form->sub_service_id = $request->sub_service_id;
         }
         $csf_form->client_type = $request->client_type;
-        $csf_form->sub_section_type = $request->sub_section_type;
         if($request->date){
             $csf_form->created_at = $request->date;
             $csf_form->updated_at = $request->date;
@@ -236,56 +238,165 @@ class SurveyFormController extends Controller
                         ->with('divisions', $divisions );
     }
 
-    public function division_sections_index(Request $request){
+    // public function division_sections_index(Request $request){
        
+    //     //selected office
+    //     $office = Office::where('id',$request->office_id)->first();
+    //     //selected division
+    //     $division = Division::where('id', $request->division_id)->first();
+
+    //     //check if division has sections
+    //     $sections = Section::where('division_id', $request->division_id)->get();
+       
+      
+    //     if(sizeof($sections) > 0){
+    //         //if it has sections
+    //         return Inertia::render('Sections')
+    //             ->with('office_id', $request->office_id)
+    //             ->with('office', $office)
+    //             ->with('division_id', $request->division_id)
+    //             ->with('division', $division)
+    //             ->with('division_sections', $sections);
+    //     }else{
+    //         // else redirect to url of csf form
+    //         $url = '/divisions/csf?office_id='.$request->office_id.
+    //                             '&division_id='.$request->division_id;
+
+    //         return Inertia::location($url);
+    //     }
+    // }
+
+    public function division_sections_index(Request $request)
+    {
+        // Selected office
+        $office = Office::find($request->office_id);
+        
+        // Selected division
+        $division = Division::find($request->division_id);
+
+        // Check if the division has sections
+        $sections = Section::where('division_id', $request->division_id)->get();
+        
+        if ($sections->isNotEmpty()) {
+            // If the division has sections, show sections
+            return Inertia::render('Sections', [
+                'office_id' => $request->office_id,
+                'office' => $office,
+                'division_id' => $request->division_id,
+                'division' => $division,
+                'division_sections' => $sections
+            ]);
+        }
+
+        // If no sections, check if the division has services directly
+        $services = Services::where('division_id', $request->division_id)->get();
+
+        if ($services->isNotEmpty()) {
+            // If the division has direct services, show services
+            return Inertia::render('Services', [
+                'office_id' => $request->office_id,
+                'office' => $office,
+                'division_id' => $request->division_id,
+                'division' => $division,
+                'division_services' => $services
+            ]);
+        }
+
+        // If neither sections nor services exist, redirect to CSF form
+        return Inertia::location('/divisions/csf?office_id=' . $request->office_id . '&division_id=' . $request->division_id);
+    }
+
+    public function section_services_index(Request $request)
+    {
+        // Selected office
+        $office = Office::find($request->office_id);
+
+        // Selected division
+        $division = Division::find($request->division_id);
+
+        // Selected section
+        $section = Section::find($request->section_id);
+
+        // Get services under this section
+        $services = Services::where('section_id', $request->section_id)->get();
+
+        if ($services->isNotEmpty()) {
+            // If section has services, show services
+            return Inertia::render('Services', [
+                'office_id' => $request->office_id,
+                'office' => $office,
+                'division_id' => $request->division_id,
+                'division' => $division,
+                'section_id' => $request->section_id,
+                'section' => $section,
+                'section_services' => $services
+            ]);
+        }
+
+        // If no services exist, redirect to CSF form
+        return Inertia::location('/divisions/csf?office_id=' . $request->office_id . '&division_id=' . $request->division_id);
+    }
+
+
+    // public function getSectionSubSections(Request $request){
+    //     $sub_sections = SubSection::where('section_id', $request->section_id)->get();
+    //     //selected office
+    //     $office = Office::where('id',$request->office_id)->first();
+    //     //selected section
+    //     $section = Section::where('id', $request->section_id)->first();
+
+    //     if(sizeof($sub_sections) > 0){
+    //         return Inertia::render('SubSections')
+    //                     ->with('office_id', $request->office_id)
+    //                     ->with('office', $office)
+    //                     ->with('division_id', $request->division_id)
+    //                     ->with('section_id', $request->section_id)
+    //                     ->with('section', $section)
+    //                     ->with('sub_sections', $sub_sections);
+    //     }else{
+    //         // redirect to url of csf form
+
+    //         $url = '/divisions/csf?office_id='.$request->office_id.
+    //                             '&division_id='.$request->division_id.
+    //                             '&section_id='.$request->section_id;
+
+    //         return Inertia::location($url);
+    //     }
+
+       
+    // }
+
+
+    public function getServicesSubServices(Request $request){
+        $sub_services = SubServices::where('service_id', $request->service_id)->get();
         //selected office
         $office = Office::where('id',$request->office_id)->first();
         //selected division
         $division = Division::where('id', $request->division_id)->first();
+         //selected section
+         $section = Section::where('id', $request->section_id)->first();
+        //selected service
+        $services = Services::where('id', $request->service_id)->first();
 
-        //check if division has sections
-        $sections = Section::where('division_id', $request->division_id)->get();
-       
-      
-        if(sizeof($sections) > 0){
-            //if it has sections
-            return Inertia::render('Sections')
-                ->with('office_id', $request->office_id)
-                ->with('office', $office)
-                ->with('division_id', $request->division_id)
-                ->with('division', $division)
-                ->with('division_sections', $sections);
-        }else{
-            // else redirect to url of csf form
-            $url = '/divisions/csf?office_id='.$request->office_id.
-                                '&division_id='.$request->division_id;
 
-            return Inertia::location($url);
-        }
-    }
-
-    public function getSectionSubSections(Request $request){
-        $sub_sections = SubSection::where('section_id', $request->section_id)->get();
-        //selected office
-        $office = Office::where('id',$request->office_id)->first();
-        //selected section
-        $section = Section::where('id', $request->section_id)->first();
-
-        if(sizeof($sub_sections) > 0){
-            return Inertia::render('SubSections')
+        if(sizeof($sub_services) > 0){
+            return Inertia::render('SubServices')
                         ->with('office_id', $request->office_id)
                         ->with('office', $office)
                         ->with('division_id', $request->division_id)
+                        ->with('division', $division)
                         ->with('section_id', $request->section_id)
                         ->with('section', $section)
-                        ->with('sub_sections', $sub_sections);
+                        ->with('service_id', $request->service_id)
+                        ->with('service', $services)
+                        ->with('sub_services', $sub_services);
         }else{
             // redirect to url of csf form
 
             $url = '/divisions/csf?office_id='.$request->office_id.
                                 '&division_id='.$request->division_id.
-                                '&section_id='.$request->section_id;
-
+                                '&section_id='.$request->section_id.
+                                '&service_id='.$request->service_id;
             return Inertia::location($url);
         }
 

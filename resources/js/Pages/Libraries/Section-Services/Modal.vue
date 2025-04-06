@@ -36,11 +36,16 @@ const props = defineProps({
         default: null,
     },
 
+    selected_service: {
+        type: Object,
+        default: null,
+    },
+
 });
 
 const form = reactive({
     division_id: null,
-    section_name:null,
+    section_id: null,
     service_name:null,
 });
 
@@ -88,13 +93,13 @@ const closeDialog = (value) => {
     emit("input", value);
 };
 
-const saveDivision = () => {
-    if(action.value == 'add_new_division'){
-        router.post('/divisions/add', form );
+const saveSection = () => {
+    if(action.value == 'add_new_section'){
+        router.post('division/section/add', form );
     }
-    else if(action.value == 'add_new_section'){
+    else if(action.value == 'add_new_service'){
         form.division_id = props.selected_division.id;
-        router.post('/divisions/section/add', form );
+        router.post('/divisions/section/service/add', form );
     }
     
    
@@ -111,12 +116,12 @@ const saveDivision = () => {
     <v-dialog v-model="show_form_modal" width="600" scrollable persistent>
         <v-card>
             <v-card-title class="bg-indigo mb-5">
-                <span class="text-h5" v-if="props.action_clicked == 'add_new_division'">Add New Division</span>
-                 <span class="text-h5" v-if="props.action_clicked == 'add_new_section'">Add New Section</span>
+                <span class="text-h5" v-if="props.action_clicked == 'add_new_section'">Add New Section</span>
+                 <span class="text-h5" v-if="props.action_clicked == 'add_new_service'">Add New Service</span>
             <v-card-text>
 
                 
-            <v-row style="margin-bottom:-30px;" v-if="props.action_clicked=='add_new_division'">
+            <v-row style="margin-bottom:-30px;" v-if="props.action_clicked=='add_new_section'">
                 <v-col cols="12" >
                     <v-text-field
                         prepend-icon="mdi-account"
@@ -146,6 +151,26 @@ const saveDivision = () => {
                     ></v-text-field>
                 </v-col>
             </v-row>
+
+            <v-row style="margin-bottom:-30px;" v-if="props.action_clicked=='add_new_section'">
+                <v-col cols="12" >
+                      <v-text-field
+                        prepend-icon="mdi-account"
+                        label="Division"
+                        v-model="props.selected_division.division_name"
+                        variant="outlined"
+                    ></v-text-field>
+                </v-col>
+                 <v-col cols="12" >
+                      <v-text-field
+                        prepend-icon="mdi-account"
+                        label="Section Name"
+                        v-model="form.service_name"
+                        variant="outlined"
+                    ></v-text-field>
+                </v-col>
+            </v-row>
+
 
 
 

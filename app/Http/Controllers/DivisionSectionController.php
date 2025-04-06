@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Section;
 use Inertia\Inertia;
 use App\Models\SubSection;
+use App\Models\SubSectionType;
 use App\Models\Division;
 use App\Models\SectionSubSection;
 use Illuminate\Support\Str;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\Division as DivisionSectionsResource;
 use App\Http\Resources\SectionSubSection as SectionSubSectionResource;
+use App\Http\Resources\SubSectionType as SubSectionTypeResource;
 
 
 class DivisionSectionController extends Controller
@@ -28,17 +30,24 @@ class DivisionSectionController extends Controller
     }
 
     public function getDivisionSections(Request $request)
-    {
-        $division_sections = Section::where('division_id',$request->code)
-            ->get()->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'section_name' => $item->section_name
-                ];
-            });
-
-        return $division_sections;
-    }    
+{
+    $division_sections = Section::where('division_id', $request->code)->get();
+    
+    if ($division_sections->count() > 0) {
+        // Division has sections, return them
+        return $division_sections->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'section_name' => $item->section_name
+            ];
+        });
+    } else {
+        // Division has no sections, return URL to services page
+        return response()->json([
+            'redirect_url' => route('services.index', ['division' => $request->code])
+        ]);
+    }
+}    
 
 
     public function storeDivision(Request $request)

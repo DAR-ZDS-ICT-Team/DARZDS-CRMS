@@ -31,7 +31,7 @@ const props = defineProps({
         default: null,
     },
 
-    selected_section: {
+    selected_services: {
         type: Object,
         default: null,
     },
@@ -40,7 +40,6 @@ const props = defineProps({
 
 const form = reactive({
     division_id: null,
-    section_name:null,
     service_name:null,
 });
 
@@ -92,9 +91,9 @@ const saveDivision = () => {
     if(action.value == 'add_new_division'){
         router.post('/divisions/add', form );
     }
-    else if(action.value == 'add_new_section'){
+    else if(action.value == 'add_new_service'){
         form.division_id = props.selected_division.id;
-        router.post('/divisions/section/add', form );
+        router.post('/divisions/service/add', form );
     }
     
    

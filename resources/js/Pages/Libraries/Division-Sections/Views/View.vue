@@ -10,6 +10,7 @@
     const props = defineProps({
         division: Object, 
         section: Object,
+        service: object,
         sub_section_types: Object,
         user: Object,
 
