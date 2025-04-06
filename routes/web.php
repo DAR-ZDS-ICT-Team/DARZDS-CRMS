@@ -83,6 +83,17 @@ Route::middleware([
     Route::get('/division/sections', [DivisionSectionController::class, 'getDivisionSections']);
     Route::post('/divisions/add', [DivisionSectionController::class, 'storeDivision']);
     Route::post('/divisions/section/add', [DivisionSectionController::class, 'storeSection']);
+
+    // Service routes 
+    Route::post('/divisions/service/add', [ServicesController::class, 'addServiceToDivision']);
+    Route::post('/divisions/section/service/add', [ServicesController::class, 'addServiceToSection']);
+    Route::get('/divisions/services', [ServicesController::class, 'getDivisionServices']);
+    Route::get('/divisions/section/services', [ServicesController::class, 'getSectionServices']);
+    Route::get('/divisions/service/{service_id}', [ServicesController::class, 'getService']);
+    Route::get('/divisions/services/active', [ServicesController::class, 'getAllActiveServices']);
+    Route::get('/services', [ServicesController::class, 'index'])->name('services');
+    Route::get('/division-services', [ServicesController::class, 'divisionServicesIndex'])
+    ->name('division.services');
     
     Route::get('/division_section/section', [DivisionSectionController::class , 'section_index'])->name('sections');
     Route::get('/csi', [ReportController::class , 'index']);
