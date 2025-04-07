@@ -19,6 +19,24 @@ import Swal from 'sweetalert2';
 import { Printd } from "printd";
 
 
+// Add this with your other methods
+const onTypeChange = (value) => {
+  // Reset fields that aren't relevant to the current selection
+  form.date_from = null;
+  form.date_to = null;
+  form.selected_month = currentMonth.value;
+  form.selected_quarter = null;
+  form.selected_year = currentYear.value;
+  
+  // Reset generated flag since we're changing the type
+  generated.value = false;
+  
+  // Force a UI update
+  setTimeout(() => {
+    // This timeout helps ensure the UI updates
+  }, 0);
+};
+
 const props = defineProps({
     division: Object, 
     section: Object,
@@ -440,6 +458,7 @@ const printCSIReport = async () => {
                                       :multiple="false"
                                       placeholder="Select Type*"
                                       :allow-empty="false"
+                                      @input="onTypeChange"
                                     >         
                                     </vue-multiselect>        
 

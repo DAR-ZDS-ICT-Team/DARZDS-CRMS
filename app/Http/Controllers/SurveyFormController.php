@@ -150,19 +150,31 @@ class SurveyFormController extends Controller
         $csf_form->customer_id = $customer->id;
         $csf_form->office_id = $request->office_id;
         $csf_form->division_id = $request->division_id;
-        $csf_form->service_id = $request->service_id;
-        $csf_form->section_id = $request->section_id;
-        if($request->sub_service_id != "null"){
+        
+        // Properly handle service_id
+        if($request->service_id && $request->service_id != "null") {
+            $csf_form->service_id = $request->service_id;
+        }
+        
+        // Section might be null for direct division services
+        if($request->section_id && $request->section_id != "null") {
+            $csf_form->section_id = $request->section_id;
+        }
+        
+        // Handle sub_service_id 
+        if($request->sub_service_id && $request->sub_service_id != "null") {
             $csf_form->sub_service_id = $request->sub_service_id;
         }
+        
         $csf_form->client_type = $request->client_type;
-        if($request->date){
+        
+        if($request->date) {
             $csf_form->created_at = $request->date;
             $csf_form->updated_at = $request->date;
         }
         
         $csf_form->save();
-
+    
         return $csf_form;
     }
 
