@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('c_s_f_forms', function (Blueprint $table) {
-            $table->integer('service_id')->after('section_id');
+            $table->unsignedBigInteger('service_id')->after('section_id')->nullable();
             $table->foreign('service_id')
                   ->references('id')
                   ->on('services')
-                  ->onDelete('set null'); 
+                  ->onDelete('set null'); // or 'cascade' depending on your preference
         });
     }
 

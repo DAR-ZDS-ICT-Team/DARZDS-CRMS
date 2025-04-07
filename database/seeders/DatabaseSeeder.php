@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
         $this->call(CcQuestionSeeder::class);
         $this->call(DivisionSeeder::class);
         $this->call(SectionSeeder::class);
+        $this->call(ServicesSeeder::class);
+        $this->call(AssignatoriesSeeder::class);
         $this->call(ShowDateCSFFormSeeder::class);
      
     }
