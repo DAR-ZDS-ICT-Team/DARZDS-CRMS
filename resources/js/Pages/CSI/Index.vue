@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import MonthlyContent from '@/Pages/CSI/Monthly/Content.vue';
+import BySectionMonthlyReport from '@/Pages/CSI/Monthly/BySectionMonthly.vue';
 import Q1Content from '@/Pages/CSI/Quarterly/Contents/Q1Content.vue';
 import Q2Content from '@/Pages/CSI/Quarterly/Contents/Q2Content.vue';
 import Q3Content from '@/Pages/CSI/Quarterly/Contents/Q3Content.vue';
@@ -32,16 +33,16 @@ const onTypeChange = (value) => {
   generated.value = false;
   
   // Force a UI update
-  setTimeout(() => {
+  // setTimeout(() => {
     // This timeout helps ensure the UI updates
-  }, 0);
+  // }, 0);
 };
 
 const props = defineProps({
     division: Object, 
     section: Object,
-    sub_section: Object,
-    sub_section_types: Object,
+    service: Object, 
+   
 
     //Monthly
     y_totals: Object,
@@ -83,6 +84,7 @@ const props = defineProps({
     dimensions: Object,
     division : Object,
     section: String,
+    service: String,
     respondents_list : Object,
     trp_totals: Number,
     grand_total_raw_points: Number,
@@ -210,8 +212,10 @@ const form = reactive({
   division: null,
   section:  null,
   section_id: null,
+  service: null,
+  service_id: null,
 
-  selected_sub_section: [],
+  selected_sub_services: [],
 
   // form type if all or per section
   form_type: null,
@@ -277,71 +281,90 @@ const currentYear = ref(getCurrentYear());
   onMounted(() => {
       form.selected_month = currentMonth.value;
       form.selected_year = currentYear.value;
-      generated.value == false;
+      // generated.value == false;
   });
 
 
-  const generateCSIReport = async (division, section) => {
-   generated.value = true;
-   form.division = division;
-
-    if(section.data && section.data.length > 0 && section.data[0]){
-      form.section_id = section.data[0].id;
-      form.section = section;
+  const generateCSIReport = async (division, section, service, sub_service = null) => {
+    generated.value = true;
+    
+    // Set division in the form
+    form.division = division;
+    
+    // Handle section if it exists
+    form.section = section && section.data && section.data.length > 0 ? section : null;
+    form.section_id = section && section.data && section.data.length > 0 ? section.data[0].id : null;
+    
+    // Handle service based on whether it comes from a section or directly from division
+    if (service && service.data && service.data.length > 0) {
+      form.service = service;
+      form.service_id = service.data[0].id;
+      
+      // If we have a service but no section_id, this is a direct division->service relationship
+      if (!form.section_id) {
+        // Direct service from division
+        form.direct_service = true;
+      } else {
+        // Service belongs to a section
+        form.direct_service = false;
+      }
+    } else {
+      form.service = null;
+      form.service_id = null;
+      form.direct_service = false;
     }
     
-    if(form.csi_type == 'By Date'){
-      if(form.date_from && form.date_to){
-            router.post('/csi/generate', form , { preserveState: true, preserveScroll: true})
-      }
-      else{ 
+    // Handle sub-service if it exists
+    if (sub_service && sub_service.data && sub_service.data.length > 0) {
+      form.sub_service = sub_service;
+      form.sub_service_id = sub_service.data[0].id;
+    } else {
+      form.sub_service = null;
+      form.sub_service_id = null;
+    }
+    
+    // Handle different CSI report types
+    if (form.csi_type == 'By Date') {
+      if (form.date_from && form.date_to) {
+        router.post('/csi/generate', form, { preserveState: true, preserveScroll: true });
+      } else { 
         Swal.fire({
-              title: "Error",
-              icon: "error",
-              text: "Please fill up Date From and Date To field."           
-          });
+          title: "Error",
+          icon: "error",
+          text: "Please fill up Date From and Date To field."
+        });
+      }
+    } else if (form.csi_type == 'By Month') {
+      form.selected_quarter = "";
+      router.post('/csi/generate', form, { preserveState: true, preserveScroll: true });
+    } else if (form.csi_type == 'By Quarter') {
+      form.selected_month = "";
+      if (form.selected_quarter) {
+        router.post('/csi/generate', form, { preserveState: true, preserveScroll: true });
+      } else { 
+        Swal.fire({
+          title: "Error",
+          icon: "error",
+          text: "Please select a quarter first!"
+        });
+      }
+    } else if (form.csi_type == 'By Year/Annual') {
+      form.selected_quarter = "";
+      if (form.selected_year) {
+        router.post('/csi/generate', form, { preserveState: true, preserveScroll: true });
+      } else {
+        Swal.fire({
+          title: "Error",
+          icon: "error",
+          text: "Please select year first!"
+        });
       }
     }
-    else if(form.csi_type == 'By Month'){
-          form.selected_quarter = "";
-          router.post('/csi/generate', form , { preserveState: true, preserveScroll: true})
-    }
-    else if(form.csi_type == 'By Quarter'){
-          form.selected_month = "";
-          if(form.selected_quarter){
-              router.post('/csi/generate', form , { preserveState: true, preserveScroll: true})
-          }
-          else{ 
-            Swal.fire({
-                  title: "Error",
-                  icon: "error",
-                  text: "Please select a quarter first!"           
-              });
-          }
-    }
-      else if(form.csi_type == 'By Year/Annual'){
-          form.selected_quarter = "";
-          if(form.selected_year ){
-             router.post('/csi/generate', form , { preserveState: true, preserveScroll: true})
-          }
-          else{         
-              Swal.fire({
-                  title: "Error",
-                  icon: "error",
-                  text: "Please select year first!"           
-              });
-          }     
-      }
-
-    
-  };
+};
 
   function refresh() {
       window.history.back()
   }
-
-
-
 
 
 
@@ -355,7 +378,6 @@ const currentYear = ref(getCurrentYear());
 );
 
 
-
 const sex_options = [
   'Male', 
   'Female' , 
@@ -364,6 +386,7 @@ const sex_options = [
 
 
 const is_printing = ref(false);
+
 const printCSIReport = async () => {
       is_printing.value = true;
       //  router.get('/generate-pdf', form , { preserveState: true, preserveScroll: true})
@@ -407,6 +430,10 @@ const printCSIReport = async () => {
           .bg-blue{
             background: blue;
           }
+            @media print {
+                body{
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust:exact;}}
 
         `;
 
@@ -437,11 +464,24 @@ const printCSIReport = async () => {
                    <v-card class="mb-5 overflow-visible" >
                     <v-card-title class="m-3">
                       <div v-if="division">
-                        DIVISION : {{ division.division_name }}
+                          DIVISION : {{ division.division_name }}
                       </div>
+
                       <v-divider class="border-opacity-100"></v-divider>
+
+                      <!-- If section exists and has data -->
                       <div v-if="section && Array.isArray(section.data) && section.data.length > 0 && section.data[0]">
-                        SECTION : {{ section.data[0].section_name }}
+                          SECTION : {{ section.data[0].section_name }}
+                          
+                          <!-- Display only the selected service -->
+                          <div v-if="service && service.data && service.data.length > 0" class="mt-2">
+                              SERVICE: {{ service.data[0].service_name }}
+                          </div>
+                      </div>
+
+                      <!-- If no section but have a direct service from division -->
+                      <div v-else-if="service && service.data && service.data.length > 0">
+                          SERVICE: {{ service.data[0].service_name }}
                       </div>
                      </v-card-title>
                     </v-card>
@@ -451,6 +491,7 @@ const printCSIReport = async () => {
                           <v-row class="p-3 overflow-visible" >
                               <v-col class="my-auto overflow-visible">
                                 <div class="my-auto overflow-visible"> 
+
                                    <vue-multiselect
                                       v-model="form.csi_type"
                                       prepend-icon="mdi-account"
@@ -548,8 +589,12 @@ const printCSIReport = async () => {
                                       ></v-text-field>
                                   </v-col>
                                   <v-col class="ml-5">
-                                    <v-btn @click="generateCSIReport(division, section)" >Generate</v-btn>
+                                    <v-btn @click="generateCSIReport(division, section, service)" >Generate</v-btn>
                                     <v-btn @click="refresh()" icon="mdi-refresh" v-if="generated" variant="text"></v-btn>
+                                  </v-col>
+
+                                  <v-col class="text-end mr-5 m-3">
+                                    <v-btn  :disabled="generated == false" prepend-icon="mdi-printer" @click="showPrintPreviewModal(true)">Print</v-btn>
                                   </v-col>
 
                               </v-row>
@@ -573,7 +618,7 @@ const printCSIReport = async () => {
                                   </v-col>   
 
                                   <v-col class="ml-5 mt-3">
-                                    <v-btn @click="generateCSIReport(division, section)" >Generate</v-btn>
+                                    <v-btn @click="generateCSIReport(division, section, service)" >Generate</v-btn>
                                     <v-btn @click="refresh()" icon="mdi-refresh" v-if="generated" variant="text"></v-btn>
                                   </v-col>
                                 <v-col class="text-end mr-5 m-3">
@@ -600,7 +645,7 @@ const printCSIReport = async () => {
                                   </v-col>   
 
                                   <v-col class="ml-5 mt-3">
-                                    <v-btn  @click="generateCSIReport(division, section)" >Generate</v-btn>
+                                    <v-btn  @click="generateCSIReport(division, section, service)" >Generate</v-btn>
                                     <v-btn @click="refresh()" icon="mdi-refresh" v-if="generated" variant="text"></v-btn>
                                   </v-col>
                                 <v-col class="text-end mr-5 m-3">
@@ -618,7 +663,7 @@ const printCSIReport = async () => {
                                   </v-col>   
 
                                   <v-col class="ml-5 mt-3">
-                                    <v-btn @click="generateCSIReport(division, section)" >Generate</v-btn>
+                                    <v-btn @click="generateCSIReport(division, section, service)" >Generate</v-btn>
                                     <v-btn @click="refresh()" icon="mdi-refresh" v-if="generated" variant="text"></v-btn>
                                   </v-col>
                                 <v-col class="text-end mr-5 m-3">
@@ -628,10 +673,12 @@ const printCSIReport = async () => {
 
                               </v-card-body>
                     </v-card>
+                    
+                  
 
                   <!-- Content Preview-->
                   <MonthlyContent v-if="form.csi_type == 'By Month' && generated == true  || form.csi_type == 'By Date' && generated == true" :form="form"  :data="props" />
-                  <Q1Content v-if="form.csi_type == 'By Quarter' && form.selected_quarter == 'FIRST QUARTER' && generated == true "  :form="form"  :data="props" />
+                  <Q1Content v-if="form.csi_type == 'By Quarter' && form.selected_quarter == 'FIRST QUARTER' && generated == true " :form="form"  :data="props" />
                   <Q2Content v-if="form.csi_type == 'By Quarter' && form.selected_quarter == 'SECOND QUARTER' && generated == true" :form="form"  :data="props" />
                   <Q3Content v-if="form.csi_type == 'By Quarter' && form.selected_quarter == 'THIRD QUARTER' && generated == true"  :form="form"  :data="props" />
                   <Q4Content v-if="form.csi_type == 'By Quarter' && form.selected_quarter == 'FOURTH QUARTER' && generated == true" :form="form"  :data="props" />

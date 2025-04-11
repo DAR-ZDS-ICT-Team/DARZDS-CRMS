@@ -150,6 +150,8 @@ class SurveyFormController extends Controller
         $csf_form->customer_id = $customer->id;
         $csf_form->office_id = $request->office_id;
         $csf_form->division_id = $request->division_id;
+        $csf_form->section_id = $request->section_id;
+        $csf_form->service_id = $request->service_id;
         
         // Properly handle service_id
         if($request->service_id && $request->service_id != "null") {
@@ -454,8 +456,6 @@ class SurveyFormController extends Controller
 
        
     }
-
-
 
     
 

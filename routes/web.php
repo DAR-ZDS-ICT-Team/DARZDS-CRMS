@@ -103,8 +103,6 @@ Route::middleware([
     Route::get('/csi/generate/all-sections/monthly', [ReportController::class, 'generateAllSectionReports']);
     Route::post('/csi/generate', [ReportController::class, 'generateReports']);
 
-
-
 });
 
 

@@ -337,6 +337,7 @@ watch(
                                                 <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
                                                     <span v-if="division.length > 0"> {{ division[0].division_name }} </span> <br>
                                                     <span v-if="section.data.length > 0"> {{ section.data[0].section_name }} </span> 
+                                                    <span v-if="service.data.length > 0"> {{ service.data[0].service_name }} </span> 
                                                     <!-- <span v-if="sub_section.data.length > 0"> {{ sub_section.data[0].sub_section_name }}</span> -->
                                                     <!-- <span v-if="form.sub_section_type" class="ml-3"> {{ form.sub_section_type }}</span> -->
                                                 </h5>
@@ -391,7 +392,7 @@ watch(
                                                             label="Client_type*"
                                                             variant="outlined"
                                                             v-model="form.client_type"
-                                                            :items="['General Public','Internal Employees','Business/Organization','Government Employees' ]"
+                                                            :items="['Government (Employee or nother Agency)','Citizen','Student','Landowner','Farmer', 'Others' ]"
                                                             :rules="[v => !!v || errors.client_type || 'This field is required']"
 
                                                         >
@@ -417,7 +418,7 @@ watch(
                                                                 label="Age Group*"
                                                                 variant="outlined"
                                                                 v-model="form.age_group"
-                                                                :items="['19 or lower','20-34','35-49','50-64','60+', 'Prefer not to say']"
+                                                                :items="['30 and below','31-40','41-50','51-60','60 and above', 'Prefer not to say']"
                                                                 :rules="[
                                                                     (v) => !!v || errors.sex ||  'This field is required',]
                                                                 "

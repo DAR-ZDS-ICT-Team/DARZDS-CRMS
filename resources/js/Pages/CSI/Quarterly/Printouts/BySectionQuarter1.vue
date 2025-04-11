@@ -31,14 +31,31 @@
         </h5><br>
         <div style="display: flex; justify-content: space-between; margin-top:-26px">
             <div style="font-size: 12px;">
-                Division : <u>{{ data.division.division_name }}</u> 
-                
+                Division: <u>{{ data.division.division_name }}</u>
             </div>
-            <div style="font-size: 12px"  v-if="data.section && data.section.data && data.section.data.length > 0 && data.section.data[0]">  
-                Section : <u v-if="data.section.data.length > 0">{{ data.section.data[0].section_name }}</u><br>
-                                <u v-if="form.client_type" style="margin-left: 75px">{{ form.client_type }}</u> <br v-if="form.client_type">
-                                <u v-if="data.sub_section[0]">{{ data.sub_section[0].sub_section_name }}</u>
-                                <u v-if="form.sub_section_type" style="margin-left: 5px">{{ form.sub_section_type.type_name }}</u>
+
+            <!-- If sections exist -->
+            <div style="font-size: 12px" v-if="data.section && data.section.data && data.section.data.length > 0">
+                Section: <u>{{ data.section.data[0].section_name }}</u><br>
+                <!-- Services belonging to this section -->
+                <div style="margin-left: 20px" v-if="data.section.data[0].services && data.section.data[0].services.length > 0">
+                    Services:
+                    <ul>
+                        <li v-for="service in data.section.data[0].services" :key="service.id">
+                            <u>{{ service.service_name }}</u>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- If no sections but division has direct services -->
+            <div style="font-size: 12px" v-else-if="data.division.services && data.division.services.length > 0">
+                Services:
+                <ul>
+                    <li v-for="service in data.division.services" :key="service.id">
+                        <u>{{ service.service_name }}</u>
+                    </li>
+                </ul>
             </div>
                     
         </div>
@@ -790,29 +807,29 @@
 
               <div style="margin-top: 5px ; font-size: 13px">
                     ANALYSIS : 
-                    <div v-if="data.section && data.section.data && data.section.data.length > 0 && data.section.data[0]"  style="text-align: justify; margin: 5px">
-                        The <span>{{ data.section.data[0].section_name }}</span> Section for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
+                    <div style="text-align: justify; margin: 5px">
+                        The <span>{{ data.service.data[0].service_name }}</span> Service for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
                         had a total of <span>{{ data.total_respondents }}</span> respondents who filled out and rated the Customer Satisfaction Feedback. 
                         <span>{{ data.total_vss_respondents }}</span> (out of <span>{{ data.total_respondents }}</span>%, or <span>{{ data.percentage_vss_respondents }}</span>%) of the respondents rated the CSF as either very satisfied (VS) or satisfied (S), 
                         which resulted in an overall average Customer Satisfaction Index (CSI) of <span>{{ data.csi }}</span>%, 
                         a Net Promoter Score of {{ data.ave_net_promoter_score }}%, and an average Likert Scale Rating of <span>{{ data.ave_net_promoter_score }}%</span>, which translates to "very satisfied" for 
                         the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>.
 
-                        The <span>{{ data.section.data[0].section_name }}</span> Section's Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
+                        The <span>{{ data.service.data[0].service_name }}</span> Section's Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
                         for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>, which achieved <span v-if="data.customer_satisfaction_rating < 95">does not</span> its quality objective of at least 95% of customers being satisfied with the services.
                     </div>
 
-                    <div v-else style="text-align: justify; margin: 5px">
-                        The <span>{{ data.division.division_name }}</span> for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
+                    <!-- <div v-else style="text-align: justify; margin: 5px">
+                        The <span>{{ data.section.section_name }}</span> for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
                         had a total of <span>{{ data.total_respondents }}</span> respondents who filled out and rated the Customer Satisfaction Feedback. 
                         <span>{{ data.total_vss_respondents }}</span> (out of <span>{{ data.total_respondents }}</span>%, or <span>{{ data.percentage_vss_respondents }}</span>%) of the respondents rated the CSF as either very satisfied (VS) or satisfied (S), 
                         which resulted in an overall average Customer Satisfaction Index (CSI) of <span>{{ data.csi }}</span>%, 
                         a Net Promoter Score of {{ data.ave_net_promoter_score }}%, and an average Likert Scale Rating of <span>{{ data.ave_net_promoter_score }}%</span>, which translates to "very satisfied" for 
                         the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>.
 
-                        The <span>{{ data.division.division_name }}</span> Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
+                        The <span>{{ data.section.section_name }}</span> Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
                         for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>, which achieved <span v-if="data.customer_satisfaction_rating < 95">does not</span> its quality objective of at least 95% of customers being satisfied with the services.
-                    </div>
+                    </div> -->
               </div>
         </div> 
    

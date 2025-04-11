@@ -790,18 +790,18 @@
             ANALYSIS:
         </v-card-title>
         <v-card-content >
-            <div v-if="data.section && data.section.data && data.section.data.length > 0 && data.section.data[0]"  class="m-5" style="margin-top: -10px;text-align: justify;">
-                The <span>{{ data.section.section_name }}</span> section for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
+            <div style="margin-top: -10px;text-align: justify;">
+                The <span>{{ data.service.service_name }}</span> section for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
                 had a total of <span>{{ data.total_respondents }}</span> respondents who filled out and rated the Customer Satisfaction Feedback. 
                 <span>{{ data.total_vss_respondents }}</span> (out of <span>{{ data.total_respondents }}</span>, or <span>{{ data.percentage_vss_respondents }}</span>%) of the respondents rated the CSF as either very satisfied (VS) or satisfied (S), 
                 which resulted in an overall average Customer Satisfaction Index (CSI) of <span>{{ data.csi }}</span>%, 
                 a Net Promoter Score of {{ data.ave_net_promoter_score }}%, and an average Likert Scale Rating of <span>{{ data.ave_net_promoter_score }}%</span>, which translates to "very satisfied" for 
                 the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>.
 
-                The <span>{{ data.section.section_name }}</span> section's Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
+                The <span>{{ data.service.service_name }}</span> section's Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
                 for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>, which <span v-if="data.customer_satisfaction_rating < 95">does not</span> achieved its quality objective of at least 95% of customers being satisfied with the services.
             </div>
-            <div v-else  class="m-5" style="margin-top: -10px;text-align: justify;">
+            <!-- <div v-else  class="m-5" style="margin-top: -10px;text-align: justify;">
                 The <span>{{ data.division.division_name }}</span> for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span> 
                 had a total of <span>{{ data.total_respondents }}</span> respondents who filled out and rated the Customer Satisfaction Feedback. 
                 <span>{{ data.total_vss_respondents }}</span> (out of <span>{{ data.total_respondents }}</span>, or <span>{{ data.percentage_vss_respondents }}</span>%) of the respondents rated the CSF as either very satisfied (VS) or satisfied (S), 
@@ -811,7 +811,7 @@
 
                 The <span>{{ data.division.division_name }}</span> Customer Satisfaction Survey resulted in an Overall Customer Satisfaction Score Rating of <span>{{ data.customer_satisfaction_rating }}</span>% 
                 for the <span style="text-transform:lowercase">{{ form.selected_quarter }}</span> of <span>{{ form.selected_year }}</span>, which <span v-if="data.customer_satisfaction_rating < 95">does not</span> achieved its quality objective of at least 95% of customers being satisfied with the services. 
-            </div>
+            </div> -->
         </v-card-content>
     </v-card>
    

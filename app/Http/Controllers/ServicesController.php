@@ -17,13 +17,16 @@ class ServicesController extends Controller
     public function index()
     {
         $services = Services::all();
-
-        $data = ServicesResource::collection($services);
+        $divisions = Division::all();
+        $sections = Section::all();
+        
         $user = Auth::user();
 
         return Inertia::render('Libraries/Services/Index')
-            ->with('services', $data)
-            ->with('user',  $user);
+            ->with('services', ServicesResource::collection($services))
+            ->with('divisions', $divisions)
+            ->with('sections', $sections)
+            ->with('user', $user);
     }
 
     public function getDivisionServices(Request $request)

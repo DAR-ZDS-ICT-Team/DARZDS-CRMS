@@ -12,8 +12,16 @@ class Services extends JsonResource
      *
      * @return array<string, mixed>
      */
-    public function toArray(Request $request): array
-    {
-        return parent::toArray($request);
-    }
+    public function toArray($request)
+{
+    return [
+        'id' => $this->id,
+        'service_name' => $this->service_name,
+        'division_id' => $this->division_id,
+        'section_id' => $this->section_id,
+        'division_name' => $this->division ? $this->division->division_name : 'N/A',
+        'section_name' => $this->section ? $this->section->section_name : 'Direct Service',
+        // Other fields...
+    ];
+}
 }
