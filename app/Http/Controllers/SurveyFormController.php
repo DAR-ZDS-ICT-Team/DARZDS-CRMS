@@ -7,7 +7,6 @@ use App\Models\Division;
 use App\Models\Services;
 use App\Models\Office;
 use App\Models\CSFForm;
-use App\Models\SubSection;
 use App\Models\Customer;
 use App\Models\Dimension;
 use App\Models\CcQuestion;
@@ -16,7 +15,6 @@ use App\Models\CustomerComment;
 use App\Models\CustomerCCRating;
 use Mews\Captcha\Facades\Captcha;
 use Illuminate\Support\Facades\DB;
-use App\Models\SubSectionType;
 use App\Models\ShowDateCsfForm;
 use App\Models\CustomerAttributeRating;
 use Illuminate\Support\Facades\Session;
@@ -26,9 +24,9 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\CustomerRecommendationRating;
 use App\Models\CustomerOtherAttributeIndication;
 
-use App\Http\Resources\Section as SectionResource;
-use App\Http\Resources\SubSection as SubSectionResource;
-use App\Http\Resources\SubSectionType as SubSectionTypeResource;
+use App\Http\Resources\Section as SectionREsource;
+use App\Http\Resources\Services as ServicesResource;
+
 use App\Http\Resources\ShowDateCSFForm as ShowDateCSFFormResource;
 
 use App\Models\CustomerSignature;
@@ -38,91 +36,77 @@ class SurveyFormController extends Controller
 {
     public function index(Request $request)
     {
-        // get the data if the date will be displayed or not
+        // Fetch global config
         $date_display = ShowDateCsfForm::all();
-
         $cc_questions = CcQuestion::all();
-        $dimensions = Dimension::all();
-        $division = Division::where('id', $request->division_id)->get();
-        $section = Section::where('id', $request->section_id)->get();
-        $sub_section = SubSection::where('section_id', $request->section_id)
-                           ->where('id', $request->sub_section_id)->get();
-        
-        $section = SectionResource::collection($section);
-        $sub_section = SubSectionResource::collection($sub_section);
+        $dimensions   = Dimension::all();
 
-        return Inertia::render('Survey-Forms/Index')
-            ->with('cc_questions', $cc_questions)
-            ->with('dimensions', $dimensions)
-            ->with('division', $division)
-            ->with('section', $section)
-            ->with('sub_section', $sub_section)
-            ->with('date_display', $date_display);  
+        // Division (always required here based on your flow)
+        $division = Division::findOrFail($request->division_id);
+
+        // Section (optional)
+        $section = null;
+        if ($request->filled('section_id') && $request->section_id !== 'undefined') {
+            $section = new SectionResource(
+                Section::findOrFail($request->section_id)
+            );
+        }
+
+        // Service (optional)
+        $service = null;
+        if ($request->filled('service_id')) {
+            $service = new ServicesResource(
+                Services::findOrFail($request->service_id)
+            );
+        }
+
+        // Optional debug logs
+        if (config('app.debug')) {
+            logger()->info('Survey form params', $request->only(['office_id', 'division_id', 'section_id', 'service_id']));
+        }
+
+        return Inertia::render('Survey-Forms/Index', [
+            'cc_questions' => $cc_questions,
+            'dimensions'   => $dimensions,
+            'division'     => $division,
+            'section'      => $section,
+            'service'      => $service,
+            'date_display' => $date_display
+        ]);
     }
 
 
 
+
     // SurveyFormRequest
-    public function store(SurveyFormRequest $request)
-    {       
-        try{
-            DB::beginTransaction();    
-           
-            //Save Customer
+    public function store(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            // Save customer
             $customer = $this->saveCustomer($request);
 
-            // Validate dimension_form data
-            $dimensionData = request()->validate([
-                'dimension_form.id.*' => ['required', 'exists:dimensions,id'],
-                'dimension_form.rate_score.*' => ['required', 'max:1'],
-                'dimension_form.importance_rate_score.*' => ['required', 'max:1'],
-            ]);
-    
-            // Associate ratings with dimensions for the customer
-            foreach ($dimensionData['dimension_form']['id'] as $index => $dimensionId) {
-                CustomerAttributeRating::create([
-                    'created_at' =>  $request->date,
-                    'updated_at' =>  $request->date,
-                    'customer_id' => $customer->id,
-                    'dimension_id' => $dimensionId,
-                    'rate_score' => $dimensionData['dimension_form']['rate_score'][$index],
-                    'importance_rate_score' => $dimensionData['dimension_form']['importance_rate_score'][$index],
-                ]);
-            }
-    
-            // Validate CC
-            $ccData = request()->validate([
-                'cc_form.id.*' => ['required', 'exists:cc_questions,id'],
-                'cc_form.answer.*' => ['required', 'max:1'],
-            ]);
-    
-            // Associate ratings with cc for the customer
-            foreach ($ccData['cc_form']['id'] as $index => $ccId) {
-                CustomerCCRating::create([
-                    'created_at' =>  $request->date,
-                    'updated_at' =>  $request->date,
-                    'customer_id' => $customer->id,
-                    'cc_id' => $ccId,
-                    'answer' => $ccData['cc_form']['answer'][$index],
-                ]);
-            }
-    
-            // Save Comment
-            if($request->comment){
+            // Save CSF form (main survey record)
+            $csf_form = $this->saveCSFForm($request, $customer);
+
+            // Save comment (optional)
+            if (!empty($request->comment)) {
                 $this->saveComment($request, $customer);
             }
-           
-            // Save Customer Recommendation Rating
-            $this->saveCustomerRecommendationRating($request, $customer);
 
-            // SAve Other Attributes Indication
-            // $this->saveCustomerOtherAttributeIndication($request, $customer);
+            // Save recommendation rating
+            if (!is_null($request->recommend_rate_score)) {
+                $this->saveCustomerRecommendationRating($request, $customer);
+            }
 
-            // Save csf form
-            $this->saveCSFForm($request, $customer);
+            // Save "other" attribute indication (optional)
+            if (!empty($request->indication)) {
+                $this->saveCustomerOtherAttributeIndication($request, $customer);
+            }
 
             DB::commit();
-           
+
             return Inertia::render('Survey-Forms/ThankYou')
                 ->with('message', "Successfully Submitted Thank you.")
                 ->with('status', "success")
@@ -130,7 +114,25 @@ class SurveyFormController extends Controller
             
             return Inertia::redirect('msg_index');
 
-        } catch (\Exception $e) {
+
+            // return response()->json([
+            //     'message' => 'Survey form saved successfully',
+            //     'data' => [
+            //         'customer' => $customer,
+            //         'csf_form' => $csf_form
+            //     ]
+            // ], 201);
+
+        } 
+        // catch (\Exception $e) {
+        //     DB::rollBack();
+        //     return response()->json([
+        //         'message' => 'Error saving survey form',
+        //         'error' => $e->getMessage()
+        //     ], 500);
+        // }
+
+        catch (\Exception $e) {
             DB::rollBack();
             //return $e;
             $msg = $e->getMessage();
@@ -138,323 +140,234 @@ class SurveyFormController extends Controller
                 'message' => $msg ,
                 'status' => "error",
             ]);
-
         }
-
-        
-   
     }
 
-    public function saveCSFForm($request, $customer){
-        $csf_form = new CSFForm();
-        $csf_form->customer_id = $customer->id;
-        $csf_form->office_id = $request->office_id;
-        $csf_form->division_id = $request->division_id;
-        $csf_form->section_id = $request->section_id;
-        $csf_form->service_id = $request->service_id;
-        
-        // Properly handle service_id
-        if($request->service_id && $request->service_id != "null") {
-            $csf_form->service_id = $request->service_id;
-        }
-        
-        // Section might be null for direct division services
-        if($request->section_id && $request->section_id != "null") {
-            $csf_form->section_id = $request->section_id;
-        }
-        
-        // Handle sub_service_id 
-        if($request->sub_service_id && $request->sub_service_id != "null") {
-            $csf_form->sub_service_id = $request->sub_service_id;
-        }
-        
-        $csf_form->client_type = $request->client_type;
-        
-        if($request->date) {
-            $csf_form->created_at = $request->date;
-            $csf_form->updated_at = $request->date;
-        }
-        
-        $csf_form->save();
-    
-        return $csf_form;
-    }
 
-    public function saveCustomer($request){
+
+
+    /**
+     * Save a new customer record
+     */
+    public function saveCustomer(Request $request)
+    {
         $customer = new Customer();
         $customer->email = $request->email;
         $customer->name = $request->name;
         $customer->client_type = $request->client_type;
         $customer->sex = $request->sex;
         $customer->age_group = $request->age_group;
-        if($request->date){
-            $customer->created_at = $request->date;
-            $customer->updated_at = $request->date;
-        }
-         // 'signature_path' => $request->signature,
-        $customer->save();
 
+        $this->setTimestamps($customer, $request->date);
+
+        $customer->save();
         return $customer;
     }
 
-    public function saveComment($request, $customer){
-         $comment = CustomerComment::create(
-            [
-                'created_at' => $request->date,
-                'updated_at' => $request->date,
-                'customer_id' => $customer->id,
-                'comment' =>  $request->comment,
-                'is_complaint' =>  $request->is_complaint,
-            ]
-         );
-        return $comment;
+    /**
+     * Save the main CSF form entry
+     */
+    public function saveCSFForm(Request $request, Customer $customer)
+    {
+        $csf_form = new CSFForm();
+        $csf_form->customer_id = $customer->id;
+        $csf_form->office_id = $request->office_id;
+        $csf_form->division_id = $request->division_id;
+        $csf_form->service_id = $request->service_id ?: null;
+        $csf_form->section_id = $request->section_id ?: null;
+        $csf_form->sub_service_id = $request->sub_service_id ?: null;
+        $csf_form->client_type = $request->client_type;
+
+        $this->setTimestamps($csf_form, $request->date);
+
+        $csf_form->save();
+        return $csf_form;
     }
 
-    public function saveCustomerRecommendationRating($request, $customer){
-        $recommentdation_rating = CustomerRecommendationRating::create(
-                [
-                    'created_at' =>  $request->date,
-                    'updated_at' =>  $request->date,
-                    'customer_id' => $customer->id,
-                    'recommend_rate_score' =>  $request->recommend_rate_score,      
-                ]
-            );
-        return $recommentdation_rating;
-    }
-
-    public function saveCustomerOtherAttributeIndication($request, $customer){
-        $customer_indication = CustomerOtherAttributeIndication::create(
-                [
-                    'created_at' =>  $request->date,
-                    'updated_at' =>  $request->date,
-                    'customer_id' => $customer->id,   
-                    'indication' =>  $request->indication,           
-                ]
-            );
-       return $customer_indication;
-   }
-
-
-   public function offices_index(Request $request){
-        $offices = Office::all();
-        return Inertia::render('Office')
-                      ->with('offices', $offices );
-   }
-
-   public function divisions_index(Request $request){
-        $divisions = Division::all();
-        //selected office
-        $office = Office::where('id',$request->office_id)->first();
-
-        return Inertia::render('Divisions')
-                        ->with('office_id', $request->office_id )
-                        ->with('office', $office )
-                        ->with('divisions', $divisions );
-    }
-
-    public function checkServiceSubServices(Request $request)
-{
-    // Get basic information
-    $office = Office::find($request->office_id);
-    $division = Division::find($request->division_id);
-    $section = Section::find($request->section_id);
-    $service = Services::find($request->service_id);
-    
-    // Verify the service exists
-    if (!$service) {
-        return redirect()->back()->with('error', 'Service not found');
-    }
-    
-    // Check if the service has any subservices
-    $subServices = SubServices::where('service_id', $request->service_id)->get();
-    
-    if ($subServices->isNotEmpty()) {
-        // If subservices exist, render the SubServices view
-        return Inertia::render('SubServices', [
-            'office_id' => $request->office_id,
-            'office' => $office,
-            'division_id' => $request->division_id,
-            'division' => $division,
-            'section_id' => $request->section_id,
-            'section' => $section,
-            'service_id' => $request->service_id,
-            'service' => $service,
-            'sub_services' => $subServices
+    /**
+     * Save a customer comment
+     */
+    public function saveComment(Request $request, Customer $customer)
+    {
+        return CustomerComment::create([
+            'customer_id' => $customer->id,
+            'comment' => $request->comment,
+            'is_complaint' => $request->is_complaint,
+            'created_at' => $request->date,
+            'updated_at' => $request->date,
         ]);
     }
-    
-    // If no subservices exist, redirect to CSF form with appropriate parameters
-    return Inertia::location('/divisions/csf?' . http_build_query([
-        'office_id' => $request->office_id,
-        'division_id' => $request->division_id,
-        'section_id' => $request->section_id,
-        'service_id' => $request->service_id
-    ]));
-}
 
-    // public function division_sections_index(Request $request){
-       
-    //     //selected office
-    //     $office = Office::where('id',$request->office_id)->first();
-    //     //selected division
-    //     $division = Division::where('id', $request->division_id)->first();
+    /**
+     * Save recommendation rating
+     */
+    public function saveCustomerRecommendationRating(Request $request, Customer $customer)
+    {
+        return CustomerRecommendationRating::create([
+            'customer_id' => $customer->id,
+            'recommend_rate_score' => $request->recommend_rate_score,
+            'created_at' => $request->date,
+            'updated_at' => $request->date,
+        ]);
+    }
 
-    //     //check if division has sections
-    //     $sections = Section::where('division_id', $request->division_id)->get();
-       
-      
-    //     if(sizeof($sections) > 0){
-    //         //if it has sections
-    //         return Inertia::render('Sections')
-    //             ->with('office_id', $request->office_id)
-    //             ->with('office', $office)
-    //             ->with('division_id', $request->division_id)
-    //             ->with('division', $division)
-    //             ->with('division_sections', $sections);
-    //     }else{
-    //         // else redirect to url of csf form
-    //         $url = '/divisions/csf?office_id='.$request->office_id.
-    //                             '&division_id='.$request->division_id;
+    /**
+     * Save "other" attribute indication
+     */
+    public function saveCustomerOtherAttributeIndication(Request $request, Customer $customer)
+    {
+        return CustomerOtherAttributeIndication::create([
+            'customer_id' => $customer->id,
+            'indication' => $request->indication,
+            'created_at' => $request->date,
+            'updated_at' => $request->date,
+        ]);
+    }
 
-    //         return Inertia::location($url);
-    //     }
-    // }
+    /**
+     * Helper to set timestamps if a date is provided
+     */
+    private function setTimestamps($model, $date)
+    {
+        if ($date) {
+            $model->created_at = $date;
+            $model->updated_at = $date;
+        }
+    }
 
+
+
+    /**
+     * Step 1: List all offices
+     */
+    public function offices_index()
+    {
+        $offices = Office::all();
+
+        return Inertia::render('Office', [
+            'offices' => $offices
+        ]);
+    }
+
+    /**
+     * Step 2: List divisions for a selected office
+     */
+    public function divisions_index(Request $request)
+    {
+        $office = Office::findOrFail($request->office_id);
+        $divisions = Division::where('office_id', $office->id)->get();
+
+        return Inertia::render('Divisions', [
+            'office_id'  => $office->id,
+            'office'     => $office,
+            'divisions'  => $divisions
+        ]);
+    }
+
+    /**
+     * Step 3: List sections for a selected division (if any), else go to services
+     */
     public function division_sections_index(Request $request)
     {
-        // Selected office
-        $office = Office::find($request->office_id);
-        
-        // Selected division
-        $division = Division::find($request->division_id);
+        $office   = Office::findOrFail($request->office_id);
+        $division = Division::findOrFail($request->division_id);
 
-        // Check if the division has sections
-        $sections = Section::where('division_id', $request->division_id)->get();
-        
+        $sections = Section::where('division_id', $division->id)->get();
+
         if ($sections->isNotEmpty()) {
-            // If the division has sections, show sections
             return Inertia::render('Sections', [
-                'office_id' => $request->office_id,
-                'office' => $office,
-                'division_id' => $request->division_id,
-                'division' => $division,
-                'division_sections' => $sections
+                'office_id'         => $office->id,
+                'office'            => $office,
+                'division_id'       => $division->id,
+                'division'          => $division,
+                'sections'          => $sections
             ]);
         }
 
-        // If no sections, check if the division has services directly
-        $services = Services::where('division_id', $request->division_id)->get();
+        // If no sections, go directly to services
+        $services = Services::where('division_id', $division->id)->get();
 
         if ($services->isNotEmpty()) {
-            // If the division has direct services, show services
             return Inertia::render('Services', [
-                'office_id' => $request->office_id,
-                'office' => $office,
-                'division_id' => $request->division_id,
-                'division' => $division,
-                'services' => $services
+                'office_id'   => $office->id,
+                'office'      => $office,
+                'division_id' => $division->id,
+                'division'    => $division,
+                'services'    => $services
             ]);
         }
 
-        // If neither sections nor services exist, redirect to CSF form
-        return Inertia::location('/divisions/csf?office_id=' . $request->office_id . '&division_id=' . $request->division_id);
+        // If no sections or services, go directly to CSF
+        return Inertia::location('/divisions/csf?' . http_build_query([
+            'office_id'   => $office->id,
+            'division_id' => $division->id
+        ]));
     }
 
+    /**
+     * Step 4: List services for a selected section
+     */
     public function section_services_index(Request $request)
     {
-        // Selected office
-        $office = Office::find($request->office_id);
+        $office   = Office::findOrFail($request->office_id);
+        $division = Division::findOrFail($request->division_id);
+        $section  = Section::findOrFail($request->section_id);
 
-        // Selected division
-        $division = Division::find($request->division_id);
-
-        // Selected section
-        $section = Section::find($request->section_id);
-
-        // Get services under this section
-        $services = Services::where('section_id', $request->section_id)->get();
+        $services = Services::where('section_id', $section->id)->get();
 
         if ($services->isNotEmpty()) {
-            // If section has services, show services
             return Inertia::render('Services', [
-                'office_id' => $request->office_id,
-                'office' => $office,
-                'division_id' => $request->division_id,
-                'division' => $division,
-                'section_id' => $request->section_id,
-                'section' => $section,
-                'section_services' => $services
+                'office_id'       => $office->id,
+                'office'          => $office,
+                'division_id'     => $division->id,
+                'division'        => $division,
+                'section_id'      => $section->id,
+                'section'         => $section,
+                'services'        => $services
             ]);
         }
 
-        // If no services exist, redirect to CSF form
-        return Inertia::location('/divisions/csf?office_id=' . $request->office_id . '&division_id=' . $request->division_id);
+        // If no services, go directly to CSF form
+        return Inertia::location('/divisions/csf?' . http_build_query([
+            'office_id'   => $office->id,
+            'division_id' => $division->id,
+            'section_id'  => $section->id
+        ]));
     }
 
+    /**
+     * Step 5: Check if a service has subservices, else go to CSF form
+     */
+    public function checkServiceSubServices(Request $request)
+    {
+        $office   = Office::findOrFail($request->office_id);
+        $division = Division::findOrFail($request->division_id);
+        $section  = $request->section_id ? Section::find($request->section_id) : null;
+        $service  = Services::findOrFail($request->service_id);
 
-    // public function getSectionSubSections(Request $request){
-    //     $sub_sections = SubSection::where('section_id', $request->section_id)->get();
-    //     //selected office
-    //     $office = Office::where('id',$request->office_id)->first();
-    //     //selected section
-    //     $section = Section::where('id', $request->section_id)->first();
+        $subServices = SubServices::where('service_id', $service->id)->get();
 
-    //     if(sizeof($sub_sections) > 0){
-    //         return Inertia::render('SubSections')
-    //                     ->with('office_id', $request->office_id)
-    //                     ->with('office', $office)
-    //                     ->with('division_id', $request->division_id)
-    //                     ->with('section_id', $request->section_id)
-    //                     ->with('section', $section)
-    //                     ->with('sub_sections', $sub_sections);
-    //     }else{
-    //         // redirect to url of csf form
-
-    //         $url = '/divisions/csf?office_id='.$request->office_id.
-    //                             '&division_id='.$request->division_id.
-    //                             '&section_id='.$request->section_id;
-
-    //         return Inertia::location($url);
-    //     }
-
-       
-    // }
-
-
-    public function getServicesSubServices(Request $request){
-        $sub_services = SubServices::where('service_id', $request->service_id)->get();
-        //selected office
-        $office = Office::where('id',$request->office_id)->first();
-        //selected division
-        $division = Division::where('id', $request->division_id)->first();
-         //selected section
-         $section = Section::where('id', $request->section_id)->first();
-        //selected service
-        $services = Services::where('id', $request->service_id)->first();
-
-
-        if(sizeof($sub_services) > 0){
-            return Inertia::render('SubServices')
-                        ->with('office_id', $request->office_id)
-                        ->with('office', $office)
-                        ->with('division_id', $request->division_id)
-                        ->with('division', $division)
-                        ->with('section_id', $request->section_id)
-                        ->with('section', $section)
-                        ->with('service_id', $request->service_id)
-                        ->with('service', $services)
-                        ->with('sub_services', $sub_services);
-        }else{
-            // redirect to url of csf form
-
-            $url = '/divisions/csf?office_id='.$request->office_id.
-                                '&division_id='.$request->division_id.
-                                '&section_id='.$request->section_id.
-                                '&service_id='.$request->service_id;
-            return Inertia::location($url);
+        if ($subServices->isNotEmpty()) {
+            return Inertia::render('SubServices', [
+                'office_id'     => $office->id,
+                'office'        => $office,
+                'division_id'   => $division->id,
+                'division'      => $division,
+                'section_id'    => optional($section)->id,
+                'section'       => $section,
+                'service_id'    => $service->id,
+                'service'       => $service,
+                'sub_services'  => $subServices
+            ]);
         }
 
-       
+        // No subservices — go directly to CSF form
+        return Inertia::location('/divisions/csf?' . http_build_query([
+            'office_id'   => $office->id,
+            'division_id' => $division->id,
+            'section_id'  => optional($section)->id,
+            'service_id'  => $service->id
+        ]));
     }
 
     

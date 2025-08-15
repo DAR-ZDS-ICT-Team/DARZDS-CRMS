@@ -39,9 +39,8 @@ Route::get('/divisions/csf/divisions', [SurveyFormController::class, 'divisions_
 Route::get('/divisions/csf/division_sections', [SurveyFormController::class, 'division_sections_index'])->name('division_sections_index');
 Route::get('/divisions/csf/section_services_index', [SurveyFormController::class, 'section_services_index'])->name('section_services_index');
 Route::get('/divisions/csf/services/check-sub-services', [SurveyFormController::class, 'checkServiceSubServices']);// Route::get('/divisions/csf/section/sub-sections', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
-// Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');
-// Route::get('/divisions/csf/section/services', [SurveyFormController::class, 'getSectionSubSections'])->name('getSectionSubSections');
-// Route::get('/divisions/csf/sub-section/types', [SurveyFormController::class, 'getSubSectionTypes'])->name('getSubSectionTypes');
+
+
 Route::get('/divisions/csf', [SurveyFormController::class, 'index'])->name('csf_form');
 Route::get('/form/csf/msg', [SurveyFormController::class, 'msg_index'])->name('msg_index');
 Route::get('captcha/{config?}', '\Mews\Captcha\CaptchaController@getCaptcha')->middleware('web');
@@ -80,22 +79,32 @@ Route::middleware([
         return Inertia::render('Profile/Show');
     })->name('profile');
     Route::get('/division_sections', [DivisionSectionController::class, 'index'])->name('division_sections');
-    Route::get('/division/sections', [DivisionSectionController::class, 'getDivisionSections']);
-    Route::post('/divisions/add', [DivisionSectionController::class, 'storeDivision']);
-    Route::post('/divisions/section/add', [DivisionSectionController::class, 'storeSection']);
+    Route::get('/division_sections/storeDivision', [DivisionSectionController::class, 'storeDivision'])->name('store_division');
+    Route::get('/division_sections/updateDivision', [DivisionSectionController::class, 'updateDivision'])->name('update_division');
+    Route::get('/division_sections/destroyDivision', [DivisionSectionController::class, 'destroyDivision'])->name('destroy_division');
+    Route::get('/division_sections/storeSection', [DivisionSectionController::class, 'storeSection'])->name('store_section');
+    Route::get('/division_sections/updateSection', [DivisionSectionController::class, 'updateSection'])->name('update_section');
+    Route::get('/division_sections/destroySection', [DivisionSectionController::class, 'destroySection'])->name('destroy_section');
+    // Route::get('/division/sections', [DivisionSectionController::class, 'getDivisionSections']);
+    // Route::post('/divisions/add', [DivisionSectionController::class, 'storeDivision']);
+    // Route::post('/divisions/section/add', [DivisionSectionController::class, 'storeSection']);
 
     // Service routes 
-    Route::post('/divisions/service/add', [ServicesController::class, 'addServiceToDivision']);
-    Route::post('/divisions/section/service/add', [ServicesController::class, 'addServiceToSection']);
-    Route::get('/divisions/services', [ServicesController::class, 'getDivisionServices']);
-    Route::get('/divisions/section/services', [ServicesController::class, 'getSectionServices']);
-    Route::get('/divisions/service/{service_id}', [ServicesController::class, 'getService']);
-    Route::get('/divisions/services/active', [ServicesController::class, 'getAllActiveServices']);
-    Route::get('/services', [ServicesController::class, 'index'])->name('services');
-    Route::get('/division-services', [ServicesController::class, 'divisionServicesIndex'])
-    ->name('division.services');
+    Route::post('/divisions/service', [ServicesController::class, 'index'])->name('services_index');
+    Route::post('/divisions/service/store', [ServicesController::class, 'storeServices'])->name('store_services');
+    Route::post('/divisions/service/update', [ServicesController::class, 'updateServices'])->name('update_services');
+    Route::post('/divisions/service/destroy', [ServicesController::class, 'destroyServices'])->name('destroy_services');
+    // Route::post('/divisions/service/add', [ServicesController::class, 'addServiceToDivision']);
+    // Route::post('/divisions/section/service/add', [ServicesController::class, 'addServiceToSection']);
+    // Route::get('/divisions/services', [ServicesController::class, 'getDivisionServices']);
+    // Route::get('/divisions/section/services', [ServicesController::class, 'getSectionServices']);
+    // Route::get('/divisions/service/{service_id}', [ServicesController::class, 'getService']);
+    // Route::get('/divisions/services/active', [ServicesController::class, 'getAllActiveServices']);
+    // Route::get('/services', [ServicesController::class, 'index'])->name('services');
+    // Route::get('/division-services', [ServicesController::class, 'divisionServicesIndex'])
+    // ->name('division.services');
     
-    Route::get('/division_section/section', [DivisionSectionController::class , 'section_index'])->name('sections');
+    // Route::get('/division_section/section', [DivisionSectionController::class , 'section_index'])->name('sections');
     Route::get('/csi', [ReportController::class , 'index']);
     Route::get('/csi/view', [ReportController::class , 'view']);
     Route::get('/csi/all-sections', [ReportController::class , 'all_sections']);

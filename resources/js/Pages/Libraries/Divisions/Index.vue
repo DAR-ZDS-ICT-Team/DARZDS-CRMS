@@ -23,12 +23,12 @@
                 showLoaderOnConfirm: true,
             }).then((result) => {
                 if (result.isConfirmed) {            
-                    router.post('/services/delete', { id },{
+                    router.post('/division_section/destroyDivision', { id },{
                         onSuccess: () => {
                            Swal.fire({
                                 title: 'Success',
                                 icon: 'success',
-                                text: 'The Service has been successfully deleted.',
+                                text: 'The Division has been successfully deleted.',
                             })
                         },
 

@@ -728,8 +728,6 @@ class ReportController extends Controller
         return $cc_query;
     }
 
-    
-
     public function getCustomerAttributeRatingByQuarter($request, $customer_ids, $startDate, $endDate)
     {
         $query = CustomerAttributeRating::whereIn('customer_id', $customer_ids)

@@ -14,6 +14,7 @@ defineProps({
 });
 
 const goDivisionSections = async (office_id, division_id) => {
+    // route: SurveyFormController
     router.get(`/divisions/csf/division_sections?office_id=${office_id}&division_id=${division_id}`)
 }
 

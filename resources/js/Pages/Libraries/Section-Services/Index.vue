@@ -23,7 +23,7 @@
                 showLoaderOnConfirm: true,
             }).then((result) => {
                 if (result.isConfirmed) {            
-                    router.post('/services/delete', { id },{
+                    router.post('/divisions/services/destroy', { id },{
                         onSuccess: () => {
                            Swal.fire({
                                 title: 'Success',
