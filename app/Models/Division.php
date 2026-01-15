@@ -9,6 +9,7 @@ class Division extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'office_id',
         'division_name',
         'slug',
     ];

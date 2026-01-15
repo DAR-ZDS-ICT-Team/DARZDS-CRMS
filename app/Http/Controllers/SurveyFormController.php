@@ -21,11 +21,13 @@ use Illuminate\Support\Facades\Session;
 use App\Http\Requests\SurveyFormRequest;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use App\Models\CustomerRecommendationRating;
 use App\Models\CustomerOtherAttributeIndication;
 
-use App\Http\Resources\Section as SectionREsource;
+use App\Http\Resources\Section as SectionResource;
 use App\Http\Resources\Services as ServicesResource;
+use App\Http\Resources\SubServices as SubServicesResource;
 
 use App\Http\Resources\ShowDateCSFForm as ShowDateCSFFormResource;
 
@@ -36,15 +38,27 @@ class SurveyFormController extends Controller
 {
     public function index(Request $request)
     {
-        // Fetch global config
+        // Validate required fields for safety
+        $request->validate([
+            'office_id'   => 'required|integer',
+            'division_id' => 'required|integer',
+            'service_id'  => 'required|integer',
+            // section_id and sub_service_id are optional
+        ]);
+
+        // Global configurations
         $date_display = ShowDateCsfForm::all();
         $cc_questions = CcQuestion::all();
         $dimensions   = Dimension::all();
 
-        // Division (always required here based on your flow)
+        // Required Models
+        $office   = Office::findOrFail($request->office_id);
         $division = Division::findOrFail($request->division_id);
+        $service  = new ServicesResource(
+            Services::findOrFail($request->service_id)
+        );
 
-        // Section (optional)
+        // Optional Section
         $section = null;
         if ($request->filled('section_id') && $request->section_id !== 'undefined') {
             $section = new SectionResource(
@@ -52,28 +66,37 @@ class SurveyFormController extends Controller
             );
         }
 
-        // Service (optional)
-        $service = null;
-        if ($request->filled('service_id')) {
-            $service = new ServicesResource(
-                Services::findOrFail($request->service_id)
+        // Optional Subservice
+        $subService = null;
+        if ($request->filled('sub_service_id') && $request->sub_service_id !== 'undefined') {
+            $subService = new SubServicesResource(
+                SubServices::findOrFail($request->sub_service_id)
             );
         }
 
-        // Optional debug logs
+        // Debug logging when APP_DEBUG = true
         if (config('app.debug')) {
-            logger()->info('Survey form params', $request->only(['office_id', 'division_id', 'section_id', 'service_id']));
+            logger()->info('Survey form params', $request->only([
+                'office_id',
+                'division_id',
+                'section_id',
+                'service_id',
+                'sub_services_id'
+            ]));
         }
 
         return Inertia::render('Survey-Forms/Index', [
             'cc_questions' => $cc_questions,
             'dimensions'   => $dimensions,
+            'office'       => $office,
             'division'     => $division,
             'section'      => $section,
             'service'      => $service,
+            'sub_service'  => $subService,
             'date_display' => $date_display
         ]);
     }
+
 
 
 
@@ -173,8 +196,8 @@ class SurveyFormController extends Controller
         $csf_form->customer_id = $customer->id;
         $csf_form->office_id = $request->office_id;
         $csf_form->division_id = $request->division_id;
-        $csf_form->service_id = $request->service_id ?: null;
         $csf_form->section_id = $request->section_id ?: null;
+        $csf_form->service_id = $request->service_id ?: null;
         $csf_form->sub_service_id = $request->sub_service_id ?: null;
         $csf_form->client_type = $request->client_type;
 
@@ -272,7 +295,13 @@ class SurveyFormController extends Controller
         $office   = Office::findOrFail($request->office_id);
         $division = Division::findOrFail($request->division_id);
 
-        $sections = Section::where('division_id', $division->id)->get();
+        $sections = Section::where('division_id', $division->id)
+                   ->where('office_id', $office->id)
+                   ->get();
+
+        // If no sections, go directly to services
+        $services = Services::where('division_id', $division->id)->get();
+
 
         if ($sections->isNotEmpty()) {
             return Inertia::render('Sections', [
@@ -280,12 +309,12 @@ class SurveyFormController extends Controller
                 'office'            => $office,
                 'division_id'       => $division->id,
                 'division'          => $division,
-                'sections'          => $sections
+                'sections'          => $sections,
+                'services'          => $services
             ]);
         }
 
-        // If no sections, go directly to services
-        $services = Services::where('division_id', $division->id)->get();
+        
 
         if ($services->isNotEmpty()) {
             return Inertia::render('Services', [
@@ -293,6 +322,7 @@ class SurveyFormController extends Controller
                 'office'      => $office,
                 'division_id' => $division->id,
                 'division'    => $division,
+                'sections'   => $sections,
                 'services'    => $services
             ]);
         }
@@ -309,31 +339,45 @@ class SurveyFormController extends Controller
      */
     public function section_services_index(Request $request)
     {
-        $office   = Office::findOrFail($request->office_id);
-        $division = Division::findOrFail($request->division_id);
-        $section  = Section::findOrFail($request->section_id);
+        // Basic sanity checks first
+        if (!$request->filled('section_id') || $request->section_id === 'undefined') {
+            Log::warning('section_services_index missing/undefined section_id', $request->all());
+            return back()->with('error', 'Section is required.');
+        }
+
+        $office   = Office::findOrFail((int) $request->office_id);
+        $division = Division::findOrFail((int) $request->division_id);
+
+        $sectionId = (int) $request->section_id;
+        $section   = Section::find($sectionId);
+
+        if (!$section) {
+            Log::warning('section_services_index: Section not found', ['section_id' => $sectionId] + $request->all());
+            abort(404);
+        }
 
         $services = Services::where('section_id', $section->id)->get();
 
-        if ($services->isNotEmpty()) {
-            return Inertia::render('Services', [
-                'office_id'       => $office->id,
-                'office'          => $office,
-                'division_id'     => $division->id,
-                'division'        => $division,
-                'section_id'      => $section->id,
-                'section'         => $section,
-                'services'        => $services
-            ]);
+        if ($services->isEmpty()) {
+            // No services under this section → send user to CSFS
+            return Inertia::location('/divisions/csf?' . http_build_query([
+                'office_id'   => $office->id,
+                'division_id' => $division->id,
+                'section_id'  => $section->id,
+            ]));
         }
 
-        // If no services, go directly to CSF form
-        return Inertia::location('/divisions/csf?' . http_build_query([
+        return Inertia::render('Services', [
             'office_id'   => $office->id,
+            'office'      => $office,
             'division_id' => $division->id,
-            'section_id'  => $section->id
-        ]));
+            'division'    => $division,
+            'section_id'  => $section->id,
+            'section'     => $section,
+            'services'    => $services,
+        ]);
     }
+
 
     /**
      * Step 5: Check if a service has subservices, else go to CSF form
@@ -347,29 +391,28 @@ class SurveyFormController extends Controller
 
         $subServices = SubServices::where('service_id', $service->id)->get();
 
-        if ($subServices->isNotEmpty()) {
-            return Inertia::render('SubServices', [
-                'office_id'     => $office->id,
-                'office'        => $office,
-                'division_id'   => $division->id,
-                'division'      => $division,
-                'section_id'    => optional($section)->id,
-                'section'       => $section,
-                'service_id'    => $service->id,
-                'service'       => $service,
-                'sub_services'  => $subServices
-            ]);
+        if ($subServices->isEmpty()) {
+            // No sub_services → send user to CSFS
+            return Inertia::location('/divisions/csf?' . http_build_query([
+                'office_id'   => $office->id,
+                'division_id' => $division->id,
+                'section_id'  => optional($section)->id,
+                'service_id' => $service->id
+            ]));
         }
 
-        // No subservices — go directly to CSF form
-        return Inertia::location('/divisions/csf?' . http_build_query([
-            'office_id'   => $office->id,
-            'division_id' => $division->id,
-            'section_id'  => optional($section)->id,
-            'service_id'  => $service->id
-        ]));
-    }
-
+        return Inertia::render('SubServices', [
+            'office_id'     => $office->id,
+            'office'        => $office,
+            'division_id'   => $division->id,
+            'division'      => $division,
+            'section_id'    => optional($section)->id,
+            'section'       => $section,
+            'service_id'    => $service->id,
+            'service'       => $service,
+            'sub_services'  => $subServices
+        ]);
     
+    } 
 
 }

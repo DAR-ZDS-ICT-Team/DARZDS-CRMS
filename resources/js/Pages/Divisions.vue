@@ -10,25 +10,25 @@ AOS.init();
 defineProps({
     office_id: Number,
     office: Object,
-    divisions: Object,
+    divisions: Array,
 });
 
-const goDivisionSections = async (office_id, division_id) => {
+const goNext = async (office_id, division_id) => {
     // route: SurveyFormController
     router.get(`/divisions/csf/division_sections?office_id=${office_id}&division_id=${division_id}`)
 }
 
 // Uncomment and modify this function when you implement division services
 
-const navigateToDivision = async (office_id, division) => {
-    if (division.sections && division.sections.length > 0) {
-        goDivisionSections(office_id, division.id);
-    } else if (division.services && division.services.length > 0) {
-        goDivisionServices(office_id, division.id);
-    } else {
-        console.warn("This division has neither sections nor services.");
-    }
-};
+// const navigateToDivision = async (office_id, division) => {
+//     if (division.sections && division.sections.length > 0) {
+//         goDivisionSections(office_id, division.id);
+//     } else if (division.services && division.services.length > 0) {
+//         goDivisionServices(office_id, division.id);
+//     } else {
+//         console.warn("This division has neither sections nor services.");
+//     }
+// };
 
 const goBack = async () => {
     window.history.back()
@@ -60,7 +60,7 @@ const goBack = async () => {
         </v-row>
         <v-row class="mx-10 mt-5" justify="center" align="center">
             <v-col v-for="division in divisions" :key="division.id" cols="12" sm="6" md="6" lg="6" justify="center" align="center">
-                <Link @click="goDivisionSections(office_id, division.id)" class="card-link">
+                <Link @click="goNext(office_id, division.id)" class="card-link">
                     <div class="card mx-5 max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 d-flex flex-column align-left justify-center" style="height:180px; text-align: center;">
                         <v-icon color="green" size="x-large" class="p-3">mdi-check-circle</v-icon>
                         <p class="mb-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white text-left">

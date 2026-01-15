@@ -17,23 +17,37 @@ class ServicesController extends Controller
     /**
      * READ - Show service or its subservices
      */
-    public function index($service_id)
+    public function index(Request $request, $service_id)
     {
         $service = Services::with('subServices')->findOrFail($service_id);
 
+        // Just get the IDs from the request
+        $office_id   = $request->office_id;
+        $division_id = $request->division_id;
+        $section_id  = $request->section_id; // may be null
+        $sub_service_id = $request->sub_service_id; // optional
+
+        // If service has subservices, still trigger survey form later
         if ($service->subServices->isNotEmpty()) {
-            // Service has subservices → show subservices page
-            return Inertia::render('Services/SubServices', [
-                'service'      => $service,
-                'subservices'  => $service->subServices
+            return Inertia::render('Survey/Form', [
+                'service'        => $service,
+                'office_id'      => $office_id,
+                'division_id'    => $division_id,
+                'section_id'     => $section_id,
+                'sub_service_id' => $sub_service_id
             ]);
         }
 
-        // No subservices → go to survey form
+        // No subservices → go directly to survey form
         return Inertia::render('Survey/Form', [
-            'service' => $service
+            'service'        => $service,
+            'office_id'      => $office_id,
+            'division_id'    => $division_id,
+            'section_id'     => $section_id,
+            'sub_service_id' => $sub_service_id
         ]);
     }
+
 
     /**
      * CREATE - Service
@@ -158,4 +172,48 @@ class ServicesController extends Controller
 
         return back()->with('message', 'SubService deleted successfully.');
     }
+
+    // public function divisionServicesIndex(Request $request)
+    // {
+    //     // Validate that division_id is provided
+    //     $request->validate([
+    //         'division_id' => 'required|exists:divisions,id'
+    //     ]);
+
+    //     $query = Services::query()
+    //         ->where('division_id', $request->division_id)
+    //         ->whereNull('section_id'); // Only services directly under the division
+
+    //     if ($request->filled('office_id')) {
+    //         $query->where('office_id', $request->office_id);
+    //     }
+
+    //     $services = $query->orderBy('service_name')->get();
+
+    //     return response()->json([
+    //         'services' => $services
+    //     ]);
+    // }
+
+    // public function sectionServicesIndex(Request $request)
+    // {
+    //     // Validate that section_id is provided
+    //     $request->validate([
+    //         'section_id' => 'required|exists:sections,id'
+    //     ]);
+
+    //     $query = Services::query()
+    //         ->where('section_id', $request->section_id); // Only services under this section
+
+    //     if ($request->filled('office_id')) {
+    //         $query->where('office_id', $request->office_id);
+    //     }
+
+    //     $services = $query->orderBy('service_name')->get();
+
+    //     return response()->json([
+    //         'services' => $services
+    //     ]);
+    // }
+
 }

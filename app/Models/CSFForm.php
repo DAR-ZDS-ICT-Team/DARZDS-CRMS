@@ -15,6 +15,7 @@ class CSFForm extends Model
         'division_id',
         'section_id',
         'service_id',
+        'sub_service_id',
         'created_at',
         'updated_at',
     ];

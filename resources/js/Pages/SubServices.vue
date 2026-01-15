@@ -1,58 +1,59 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import { reactive, watch, ref, onMounted } from "vue";
-import AOS from 'aos'
-import 'aos/dist/aos.css'
-import { router } from '@inertiajs/vue3'
+import { Head, Link, router } from "@inertiajs/vue3";
+import { onMounted } from "vue";
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 AOS.init();
 
 defineProps({
-    sections: Array,
+    sub_services: {
+        type: Array,
+        default: () => [],
+    },
+    service_id: Number,
+    service: Object,
     office_id: Number,
     office: Object,
     division_id: Number,
     division: Object,
+    section_id: {
+        type: Number,
+        default: null,
+    },
+    section: {
+        type: Object,
+        default: null,
+    },
 });
 
-
-// const goNext = ({ office_id, division_id, section_id }) => {
-//   if (!section_id) {
-//     console.error('Missing section_id', { office_id, division_id, section_id });
-//     return;
-//   }
-//   router.get(
-//     route('section_services_index', { office_id, division_id, section_id })
-//   );
-// };
-
-const goNext = (section_id, office_id, division_id) => {
-    if (!section_id) {
-        console.error('Missing section_id', { office_id, division_id, section_id });
-        return;
-    }
-
-    const url = getSectionServices(office_id, division_id, section_id);
-    router.get(url);
+const goToSurveyForm = (
+    office_id,
+    division_id,
+    section_id,
+    service_id,
+    sub_service_id = null
+) => {
+    router.get(
+        `/divisions/csf/services/check-sub-services`,
+        {
+            office_id,
+            division_id,
+            section_id,
+            service_id,
+            sub_service_id
+        }
+    );
 };
 
-const getSectionServices = (office_id, division_id, section_id) => {
-    return `/divisions/csf/section_services_index?office_id=${office_id}&division_id=${division_id}&section_id=${section_id}`;
+const goBack = () => {
+    window.history.back();
 };
-
-
-// Replaced by services
-// const getSectionSubSections = async (office_id, division_id, section_id) => {
-//     router.get(`/divisions/csf/section/sub-sections?office_id=${office_id}&division_id=${division_id}&section_id=${section_id}`);
-// }
-
-const goBack = async () => {
-    window.history.back()
-}
 </script>
 
 <template >
-    <Head title="Divisions" />   
+
+    <Head title="Sub Services" />   
     <nav 
         data-aos="fade-down" 
         data-aos-duration="500" 
@@ -64,20 +65,25 @@ const goBack = async () => {
                 <img src="../../../public/images/dar-logo.svg" class="h-8" alt="DAR Logo">
                 <span class="self-center text-2xl font-semibold whitespace-nowrap">DAR <span v-if="office">{{ office.code }}</span> Customer Relation Management System</span>
             </a>
-        </div>
+            <!-- <h1 class="text-xl font-bold mb-4">
+                Services for
+                <span class="text-blue-600">{{ division.division_name }}</span>
+                <span v-if="section"> → {{ section.section_name }}</span>
+            </h1> -->
+        </div>  
     </nav>  
     <v-container fill-height>
         <v-row class="mx-15" style="margin-top: 100px;" >
             <v-col>
                 <div class="w-full border bg-primary">
-                    <v-card-title class="text-center">Sections</v-card-title>
+                    <v-card-title class="text-center">Services</v-card-title>
                 </div>
             </v-col>
         </v-row>
         <v-row class="mx-10 mt-5" justify="center" align="center">
             <v-col 
-                v-for="section in sections" 
-                :key="section.id" 
+                v-for="sub_service in sub_services" 
+                :key="sub_service.id" 
                 cols="12" 
                 sm="6" 
                 md="6" 
@@ -85,11 +91,11 @@ const goBack = async () => {
                 justify="center" 
                 align="center">
 
-                <Link @click="goNext(section.id, office.id, division.id)" class="card-link">
+                <Link @click="goToSurveyForm(office_id, division_id, section_id, services.id)" class="card-link">
                     <div class="card mx-5 max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 d-flex flex-column align-left justify-center" style="height:180px; text-align: center;">
                         <v-icon color="green" size="x-large" class="p-3">mdi-check-circle</v-icon>
                         <p class="mb-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white text-left">
-                            {{ section.section_name }}
+                            {{ sub_service.sub_service_name }}
                         </p>
                     </div>
                 </Link>

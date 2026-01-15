@@ -16,11 +16,9 @@ class Services extends JsonResource
 {
     return [
         'id' => $this->id,
-        'service_name' => $this->service_name,
         'division_id' => $this->division_id,
         'section_id' => $this->section_id,
-        'division_name' => $this->division ? $this->division->division_name : 'N/A',
-        'section_name' => $this->section ? $this->section->section_name : 'Direct Service',
+        'service_name' => $this->service_name,
         // Other fields...
     ];
 }

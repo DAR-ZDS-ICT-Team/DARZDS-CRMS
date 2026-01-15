@@ -9,6 +9,7 @@ class Section extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'office_id',
         'division_id',  
         'section_name',
     ];

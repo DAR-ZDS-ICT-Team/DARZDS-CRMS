@@ -9,9 +9,11 @@ import Swal from 'sweetalert2';
 const props = defineProps({
     cc_questions: Object,
     dimensions: Object, 
+    office: Object,
     division: Object,
     section: Object,
-    service: Object,  // Add this for services
+    services: Object,  // Add this for services
+    subServices: Object,
     status: String,
     errors: Object,
     captcha_img: String,
@@ -77,11 +79,11 @@ const form = reactive({
     office_id: null,
     division_id: null,
     section_id: null,
-    sub_section_id: null,
+    service_id: null,
+    sub_service_id: null,
 
     date: getCurrentDate(),
     client_type: null,
-    sub_section_type: null,
 
     email: null,
     name: null,
@@ -139,24 +141,27 @@ onMounted(() => {
     AOS.init();
 
     const currentURL = window.location.href;
-    // Extract query parameters from the URL
     const searchParams = new URLSearchParams(currentURL.split("?")[1]);
 
-    // Get parameters and handle 'undefined' strings properly
+    // Helper to clean "undefined" values
+    const safeGet = (key) => {
+        const value = searchParams.get(key);
+        return (value && value !== 'undefined') ? value : null;
+    };
+
+    // form.office_id = safeGet("office_id");
+    // form.division_id = safeGet("division_id");
+    // form.section_id = safeGet("section_id");
+    // form.service_id = safeGet("service_id");
+    // form.sub_service_id = safeGet("sub_service_id");
+    // form.current_url = currentURL;
+
     form.office_id = searchParams.get("office_id");
     form.division_id = searchParams.get("division_id");
-    
-    // Check for 'undefined' string values in URL parameters
-    const sectionId = searchParams.get("section_id");
-    form.section_id = (sectionId && sectionId !== 'undefined') ? sectionId : null;
-    
-    const serviceId = searchParams.get("service_id");
-    form.service_id = (serviceId && serviceId !== 'undefined') ? serviceId : null;
-    
-    const subServiceId = searchParams.get("sub_service_id");
-    form.sub_service_id = (subServiceId && subServiceId !== 'undefined') ? subServiceId : null;
-    
-    form.current_url = currentURL; 
+    form.section_id = searchParams.get("section_id");
+    form.service_id = searchParams.get("service_id");
+    form.sub_service_id = searchParams.get("sub_service_id");
+    form.current_url = currentURL;
 
     Swal.fire({
         title: "Disclaimer",
@@ -164,6 +169,7 @@ onMounted(() => {
         text: "The DAR is committed to protect and respect your personal data privacy. All information collected will only be used for documentation purposes and will not be published in any platform.",
     });
 });
+
 
 
 
@@ -345,6 +351,7 @@ watch(
                                             <a href="#">
                                                 <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
                                                     <span v-if="division && division.length > 0"> {{ division[0].division_name }} </span> <br>
+                                                    <span v-if="office && office.length > 0"> {{ office[0].office_name }} </span> <br>
                                                     <span v-if="section && section.data && section.data.length > 0"> {{ section.data[0].section_name }} </span> 
                                                     <span v-if="service && service.length > 0"> {{ service[0].service_name }} </span> 
                                                     <span v-if="sub_service && sub_service.length > 0"> {{ sub_service[0].sub_service_name }} </span>
@@ -358,7 +365,7 @@ watch(
                                                     v-model="form.date" 
                                                     type="date" 
                                                     label="Date"
-                                                    variant="outlined" 
+                                                    variant="outlined"
                                                 >
                                                 </v-text-field>
 
