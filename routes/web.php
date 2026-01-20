@@ -14,6 +14,17 @@ use App\Http\Controllers\SubSectionController;
 use App\Http\Controllers\SurveyFormController;
 use App\Http\Controllers\DivisionSectionController;
 use App\Http\Controllers\ServicesController;
+use App\Models\Division;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Services;
+use App\Models\CSFForm;
+use App\Models\CustomerCCRating;
+use App\Models\CustomerAttributeRating;
+use App\Models\Dimension;
+use Illuminate\Support\Facades\DB;
+use App\Models\Customer;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -59,9 +70,9 @@ Route::middleware([
         Route::post('/accounts/add', [AccountController::class, 'store']);
         Route::post('/accounts/update', [AccountController::class, 'update']);
         Route::post('/accounts/reset-password', [AccountController::class, 'resetPassword']);   
-        Route::get('/libraries', function () {
-            return Inertia::render('Libraries/Divisions/Index');
-        })->name('libraries');
+        // Route::get('/libraries', function () {
+        //     return Inertia::render('Libraries/Divisions/Index');
+        // })->name('libraries');
         Route::get('/offices', [OfficeController::class, 'index'])->name('offices');
         Route::post('/offices/add', [OfficeController::class, 'store']);
         Route::post('/offices/update', [OfficeController::class, 'update']);
@@ -115,8 +126,324 @@ Route::middleware([
     Route::get('/csi/generate/all-sections/monthly', [ReportController::class, 'generateAllSectionReports']);
     Route::post('/csi/generate', [ReportController::class, 'generateReports']);
 
+    Route::get('/libraries', function () {
+        $user = Auth::user();
+
+        $divisions = Division::with([
+            'sections' => fn ($q) => $q->orderBy('section_name'),
+            'sections.services' => fn ($q) => $q->orderBy('service_name'),
+            'services' => fn ($q) => $q->whereNull('section_id')->orderBy('service_name'),
+        ])
+            ->where('office_id', $user->office_id)
+            ->orderBy('division_name')
+            ->get();
+
+        return Inertia::render('Libraries/Divisions/Index', [
+            'divisions' => $divisions,
+        ]);
+    })->name('libraries');
+
+    Route::get('/libraries/overall/services', function () {
+        $user = Auth::user();
+
+        $services = Services::whereHas('division', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            })
+            ->orderBy('service_name')
+            ->get(['id', 'service_name']);
+
+        $counts = CSFForm::select(
+                'service_id',
+                DB::raw('count(distinct customer_id) as transactions')
+            )
+            ->where('office_id', $user->office_id)
+            ->whereNotNull('service_id')
+            ->groupBy('service_id')
+            ->get()
+            ->keyBy('service_id');
+
+        $service_stats = $services->map(function ($service) use ($counts) {
+            $row = $counts->get($service->id);
+
+            return [
+                'id' => $service->id,
+                'service_name' => $service->service_name,
+                'transactions' => (int) ($row->transactions ?? 0),
+            ];
+        });
+
+        return Inertia::render('Libraries/Divisions/ServicesTable', [
+            'service_stats' => $service_stats,
+        ]);
+    })->name('libraries.overall.services');
+
+    Route::get('/libraries/overall/demographic', function () {
+        $user = Auth::user();
+
+        $customerIds = CSFForm::where('office_id', $user->office_id)
+            ->whereNotNull('customer_id')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $baseCustomers = Customer::whereIn('id', $customerIds);
+
+        $clientTypes = (clone $baseCustomers)
+            ->selectRaw("COALESCE(NULLIF(client_type,''),'Not Indicated') as label, COUNT(*) as count")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $ageGroups = (clone $baseCustomers)
+            ->selectRaw("COALESCE(NULLIF(age_group,''),'Not Indicated') as label, COUNT(*) as count")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $sexes = (clone $baseCustomers)
+            ->selectRaw("COALESCE(NULLIF(sex,''),'Not Indicated') as label, COUNT(*) as count")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $total = (clone $baseCustomers)->count();
+
+        return Inertia::render('Libraries/Divisions/Demographic', [
+            'client_types' => $clientTypes,
+            'age_groups' => $ageGroups,
+            'sexes' => $sexes,
+            'total_customers' => $total,
+        ]);
+    })->name('libraries.overall.demographic');
+
+    Route::get('/libraries/overall/cc', function () {
+        $user = Auth::user();
+
+        $customerIds = CSFForm::where('office_id', $user->office_id)
+            ->whereNotNull('customer_id')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $totalCustomers = $customerIds->count();
+
+        $counts = CustomerCCRating::select('cc_id', 'answer', DB::raw('count(*) as count'))
+            ->whereIn('customer_id', $customerIds)
+            ->groupBy('cc_id', 'answer')
+            ->get()
+            ->groupBy('cc_id')
+            ->map(function ($group) {
+                return $group->keyBy(function ($item) {
+                    return (string) $item->answer;
+                });
+            });
+
+        $buildRows = function (int $ccId, array $options) use ($counts, $totalCustomers) {
+            $rows = [];
+            $answeredTotal = 0;
+            $ccCounts = $counts->get($ccId, collect());
+
+            foreach ($options as $option) {
+                $answerKey = (string) $option['value'];
+                $count = (int) ($ccCounts->get($answerKey)->count ?? 0);
+                $answeredTotal += $count;
+                $percentage = $totalCustomers > 0 ? round(($count / $totalCustomers) * 100) : 0;
+
+                $rows[] = [
+                    'label' => $option['label'],
+                    'count' => $count,
+                    'percentage' => $percentage,
+                ];
+            }
+
+            $noAnswerCount = max(0, $totalCustomers - $answeredTotal);
+            $noAnswerPercentage = $totalCustomers > 0 ? round(($noAnswerCount / $totalCustomers) * 100) : 0;
+
+            $rows[] = [
+                'label' => 'No Answer',
+                'count' => $noAnswerCount,
+                'percentage' => $noAnswerPercentage,
+            ];
+
+            return $rows;
+        };
+
+        $tables = [
+            [
+                'title' => 'CC 1',
+                'rows' => $buildRows(1, [
+                    ['value' => 1, 'label' => 'CC 1.1 I know what a CC is and I saw this office\'s CC.'],
+                    ['value' => 2, 'label' => 'CC 1.2 I know what a CC is but I did not see this office\'s CC.'],
+                    ['value' => 3, 'label' => 'CC 1.3 I learned of the CC only when I saw this office\'s CC.'],
+                    ['value' => 4, 'label' => 'CC 1.4 I do not know what a CC is and I did not see this office\'s CC.'],
+                ]),
+            ],
+            [
+                'title' => 'CC 2',
+                'rows' => $buildRows(2, [
+                    ['value' => 1, 'label' => 'CC 2.1 Easy to see'],
+                    ['value' => 2, 'label' => 'CC 2.2 Somewhat easy to see'],
+                    ['value' => 3, 'label' => 'CC 2.3 Difficult to see'],
+                    ['value' => 4, 'label' => 'CC 2.4 Not visible at all'],
+                    ['value' => 5, 'label' => 'N/A'],
+                ]),
+            ],
+            [
+                'title' => 'CC 3',
+                'rows' => $buildRows(3, [
+                    ['value' => 1, 'label' => 'CC 3.1 Helped very much'],
+                    ['value' => 2, 'label' => 'CC 3.2 Somewhat helped'],
+                    ['value' => 3, 'label' => 'CC 3.3 Did not help'],
+                    ['value' => 4, 'label' => 'N/A'],
+                ]),
+            ],
+        ];
+
+        return Inertia::render('Libraries/Divisions/CcTable', [
+            'cc_tables' => $tables,
+            'total_customers' => $totalCustomers,
+        ]);
+    })->name('libraries.overall.cc');
+
+    Route::get('/libraries/overall/sqd', function () {
+        $user = Auth::user();
+
+        $customerIds = CSFForm::where('office_id', $user->office_id)
+            ->whereNotNull('customer_id')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $dimensions = Dimension::all();
+
+        $counts = CustomerAttributeRating::select('dimension_id', 'rate_score', DB::raw('count(*) as count'))
+            ->whereIn('customer_id', $customerIds)
+            ->groupBy('dimension_id', 'rate_score')
+            ->get()
+            ->groupBy('dimension_id')
+            ->map(function ($group) {
+                return $group->keyBy('rate_score');
+            });
+
+        $dimensionOrder = [
+            'responsiveness' => 'Responsiveness',
+            'reliability' => 'Reliability',
+            'access-and-facilities' => 'Access and Facilities',
+            'communication' => 'Communication',
+            'costs' => 'Costs',
+            'integrity' => 'Integrity',
+            'assurance' => 'Assurance',
+            'outcome' => 'Outcome',
+            'overall' => 'Overall Satisfaction',
+        ];
+
+        $dimensionMap = $dimensions->keyBy(function ($dimension) {
+            return strtolower($dimension->slug);
+        });
+
+        $rows = [];
+        $totals = [
+            'strongly_disagree' => 0,
+            'disagree' => 0,
+            'neither' => 0,
+            'agree' => 0,
+            'strongly_agree' => 0,
+            'na' => 0,
+            'responses' => 0,
+        ];
+
+        foreach ($dimensionOrder as $slug => $label) {
+            $dimension = $dimensionMap->get($slug);
+            if (!$dimension) {
+                continue;
+            }
+
+            $dimCounts = $counts->get($dimension->id, collect());
+            $stronglyDisagree = (int) ($dimCounts->get(1)->count ?? 0);
+            $disagree = (int) ($dimCounts->get(2)->count ?? 0);
+            $neither = (int) ($dimCounts->get(3)->count ?? 0);
+            $agree = (int) ($dimCounts->get(4)->count ?? 0);
+            $stronglyAgree = (int) ($dimCounts->get(5)->count ?? 0);
+            $na = (int) ($dimCounts->get(6)->count ?? 0);
+            $responses = $stronglyDisagree + $disagree + $neither + $agree + $stronglyAgree + $na;
+            $denominator = $responses - $na;
+            $rating = $denominator > 0 ? round((($agree + $stronglyAgree) / $denominator) * 100, 1) : 0;
+
+            $rows[] = [
+                'label' => $label,
+                'strongly_disagree' => $stronglyDisagree,
+                'disagree' => $disagree,
+                'neither' => $neither,
+                'agree' => $agree,
+                'strongly_agree' => $stronglyAgree,
+                'na' => $na,
+                'responses' => $responses,
+                'rating' => $rating,
+            ];
+
+            $totals['strongly_disagree'] += $stronglyDisagree;
+            $totals['disagree'] += $disagree;
+            $totals['neither'] += $neither;
+            $totals['agree'] += $agree;
+            $totals['strongly_agree'] += $stronglyAgree;
+            $totals['na'] += $na;
+            $totals['responses'] += $responses;
+        }
+
+        $totalDenominator = $totals['responses'] - $totals['na'];
+        $totals['rating'] = $totalDenominator > 0
+            ? round((($totals['agree'] + $totals['strongly_agree']) / $totalDenominator) * 100, 1)
+            : 0;
+
+        return Inertia::render('Libraries/Divisions/SqdTable', [
+            'sqd_rows' => $rows,
+            'sqd_totals' => $totals,
+        ]);
+    })->name('libraries.overall.sqd');
+
+    Route::get('/libraries/overall/services-rating', function () {
+        $user = Auth::user();
+
+        $services = Services::whereHas('division', function ($query) use ($user) {
+                $query->where('office_id', $user->office_id);
+            })
+            ->orderBy('service_name')
+            ->get(['id', 'service_name']);
+
+        $serviceRatings = $services->map(function ($service) use ($user) {
+            $customerIds = CSFForm::where('office_id', $user->office_id)
+                ->where('service_id', $service->id)
+                ->whereNotNull('customer_id')
+                ->distinct()
+                ->pluck('customer_id');
+
+            if ($customerIds->isEmpty()) {
+                return [
+                    'id' => $service->id,
+                    'service_name' => $service->service_name,
+                    'rating' => null,
+                ];
+            }
+
+            $baseRatings = CustomerAttributeRating::whereIn('customer_id', $customerIds);
+            $denominator = (clone $baseRatings)
+                ->whereIn('rate_score', [1, 2, 3, 4, 5])
+                ->count();
+            $positive = (clone $baseRatings)
+                ->whereIn('rate_score', [4, 5])
+                ->count();
+
+            $rating = $denominator > 0 ? round(($positive / $denominator) * 100, 2) : null;
+
+            return [
+                'id' => $service->id,
+                'service_name' => $service->service_name,
+                'rating' => $rating,
+            ];
+        });
+
+        return Inertia::render('Libraries/Divisions/ServicesOverallTable', [
+            'service_ratings' => $serviceRatings,
+        ]);
+    })->name('libraries.overall.services_rating');
+
+
 });
-
-
-
 

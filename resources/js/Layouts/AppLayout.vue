@@ -56,18 +56,22 @@ const logout = () => {
                                 </NavLink>
 
 
-                                <NavLink href="/division_sections" active="/service_units">
+                                <!-- <NavLink href="/division_sections" active="/service_units">
                                    Division Units
                                 </NavLink>
 
                                 
                                 <NavLink href="/services" :active="$page.component === 'Libraries/Services/Index'">
                                     Services
-                                </NavLink>
+                                </NavLink> -->
                                                                 
 
                                  <NavLink href="/libraries" active="/libraries"  >
                                     Libraries
+                                </NavLink>
+
+                                <NavLink href="/settings" active="/settings"  >
+                                    Settings
                                 </NavLink>
                                 
                             </div>

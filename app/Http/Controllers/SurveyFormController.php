@@ -128,6 +128,9 @@ class SurveyFormController extends Controller
                 $this->saveCustomerOtherAttributeIndication($request, $customer);
             }
 
+            $this->saveCustomerAttributeRatings($request, $customer);
+            $this->saveCustomerCCRatings($request, $customer);
+
             DB::commit();
 
             return Inertia::render('Survey-Forms/ThankYou')
@@ -245,6 +248,64 @@ class SurveyFormController extends Controller
             'created_at' => $request->date,
             'updated_at' => $request->date,
         ]);
+    }
+
+
+    /**
+     * Save customer attribute ratings
+     */
+    private function saveCustomerAttributeRatings(Request $request, Customer $customer)
+    {
+        $ids = $request->input('dimension_form.id', []);
+        $rates = $request->input('dimension_form.rate_score', []);
+        $importance = $request->input('dimension_form.importance_rate_score', []);
+
+        foreach ($ids as $i => $dimensionId) {
+            if (!$dimensionId) {
+                continue;
+            }
+
+            $rate = $rates[$i] ?? null;
+            $importanceRate = $importance[$i] ?? null;
+
+            if ($rate === null || $importanceRate === null) {
+                continue;
+            }
+
+            CustomerAttributeRating::create([
+                'customer_id' => $customer->id,
+                'dimension_id' => $dimensionId,
+                'rate_score' => (int) $rate,
+                'importance_rate_score' => (int) $importanceRate,
+                'created_at' => $request->date,
+                'updated_at' => $request->date,
+            ]);
+        }
+    }
+
+    /**
+     * Save customer CC ratings
+     */
+    private function saveCustomerCCRatings(Request $request, Customer $customer)
+    {
+        $ids = $request->input('cc_form.id', []);
+        $answers = $request->input('cc_form.answer', []);
+
+        foreach ($ids as $i => $ccId) {
+            $answer = $answers[$i] ?? null;
+
+            if (!$ccId || $answer === null) {
+                continue;
+            }
+
+            CustomerCCRating::create([
+                'customer_id' => $customer->id,
+                'cc_id' => $ccId,
+                'answer' => (string) $answer,
+                'created_at' => $request->date,
+                'updated_at' => $request->date,
+            ]);
+        }
     }
 
     /**
