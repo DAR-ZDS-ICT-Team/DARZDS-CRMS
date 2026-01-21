@@ -21,6 +21,7 @@ use App\Models\CSFForm;
 use App\Models\CustomerCCRating;
 use App\Models\CustomerAttributeRating;
 use App\Models\Dimension;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\Customer;
 
@@ -36,6 +37,43 @@ use App\Models\Customer;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+$resolveDateRange = function ($request) {
+    $type = $request->input('period_type');
+    $month = $request->input('selected_month');
+    $quarter = $request->input('selected_quarter');
+    $year = $request->input('selected_year');
+
+    if ($type === 'By Month' && $month && $year) {
+        $monthNumber = Carbon::parse("1 {$month}")->month;
+        $start = Carbon::create((int) $year, $monthNumber, 1)->startOfDay();
+        $end = (clone $start)->endOfMonth()->endOfDay();
+        return [$start, $end];
+    }
+
+    if ($type === 'By Quarter' && $quarter && $year) {
+        $quarterMap = [
+            'FIRST QUARTER' => [1, 3],
+            'SECOND QUARTER' => [4, 6],
+            'THIRD QUARTER' => [7, 9],
+            'FOURTH QUARTER' => [10, 12],
+        ];
+        if (isset($quarterMap[$quarter])) {
+            [$startMonth, $endMonth] = $quarterMap[$quarter];
+            $start = Carbon::create((int) $year, $startMonth, 1)->startOfDay();
+            $end = Carbon::create((int) $year, $endMonth, 1)->endOfMonth()->endOfDay();
+            return [$start, $end];
+        }
+    }
+
+    if ($type === 'By Year/Annual' && $year) {
+        $start = Carbon::create((int) $year, 1, 1)->startOfDay();
+        $end = Carbon::create((int) $year, 12, 31)->endOfDay();
+        return [$start, $end];
+    }
+
+    return [null, null];
+};
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -64,7 +102,7 @@ Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
     'verified',
-])->group(function () {
+])->group(function () use ($resolveDateRange) {
     Route::middleware([CheckAdmin::class])->group(function () {
         Route::get('/accounts', [AccountController::class, 'index'])->name('accounts');
         Route::post('/accounts/add', [AccountController::class, 'store']);
@@ -140,11 +178,18 @@ Route::middleware([
 
         return Inertia::render('Libraries/Divisions/Index', [
             'divisions' => $divisions,
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
         ]);
     })->name('libraries');
 
-    Route::get('/libraries/overall/services', function () {
+    Route::get('/libraries/overall/services', function () use ($resolveDateRange) {
         $user = Auth::user();
+        [$startDate, $endDate] = $resolveDateRange(request());
 
         $services = Services::whereHas('division', function ($q) use ($user) {
                 $q->where('office_id', $user->office_id);
@@ -152,12 +197,17 @@ Route::middleware([
             ->orderBy('service_name')
             ->get(['id', 'service_name']);
 
-        $counts = CSFForm::select(
+        $csfBase = CSFForm::where('office_id', $user->office_id);
+        if ($startDate && $endDate) {
+            $csfBase->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $counts = (clone $csfBase)->select(
                 'service_id',
                 DB::raw('count(distinct customer_id) as transactions')
             )
-            ->where('office_id', $user->office_id)
             ->whereNotNull('service_id')
+            ->whereNotNull('customer_id')
             ->groupBy('service_id')
             ->get()
             ->keyBy('service_id');
@@ -174,13 +224,25 @@ Route::middleware([
 
         return Inertia::render('Libraries/Divisions/ServicesTable', [
             'service_stats' => $service_stats,
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
         ]);
     })->name('libraries.overall.services');
 
-    Route::get('/libraries/overall/demographic', function () {
+    Route::get('/libraries/overall/demographic', function () use ($resolveDateRange) {
         $user = Auth::user();
+        [$startDate, $endDate] = $resolveDateRange(request());
 
-        $customerIds = CSFForm::where('office_id', $user->office_id)
+        $csfBase = CSFForm::where('office_id', $user->office_id);
+        if ($startDate && $endDate) {
+            $csfBase->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $customerIds = (clone $csfBase)
             ->whereNotNull('customer_id')
             ->distinct()
             ->pluck('customer_id');
@@ -212,22 +274,38 @@ Route::middleware([
             'age_groups' => $ageGroups,
             'sexes' => $sexes,
             'total_customers' => $total,
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
         ]);
     })->name('libraries.overall.demographic');
 
-    Route::get('/libraries/overall/cc', function () {
+    Route::get('/libraries/overall/cc', function () use ($resolveDateRange) {
         $user = Auth::user();
+        [$startDate, $endDate] = $resolveDateRange(request());
 
-        $customerIds = CSFForm::where('office_id', $user->office_id)
+        $csfBase = CSFForm::where('office_id', $user->office_id);
+        if ($startDate && $endDate) {
+            $csfBase->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $customerIds = (clone $csfBase)
             ->whereNotNull('customer_id')
             ->distinct()
             ->pluck('customer_id');
 
         $totalCustomers = $customerIds->count();
 
-        $counts = CustomerCCRating::select('cc_id', 'answer', DB::raw('count(*) as count'))
-            ->whereIn('customer_id', $customerIds)
-            ->groupBy('cc_id', 'answer')
+        $ccQuery = CustomerCCRating::select('cc_id', 'answer', DB::raw('count(*) as count'))
+            ->whereIn('customer_id', $customerIds);
+        if ($startDate && $endDate) {
+            $ccQuery->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $counts = $ccQuery->groupBy('cc_id', 'answer')
             ->get()
             ->groupBy('cc_id')
             ->map(function ($group) {
@@ -300,22 +378,38 @@ Route::middleware([
         return Inertia::render('Libraries/Divisions/CcTable', [
             'cc_tables' => $tables,
             'total_customers' => $totalCustomers,
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
         ]);
     })->name('libraries.overall.cc');
 
-    Route::get('/libraries/overall/sqd', function () {
+    Route::get('/libraries/overall/sqd', function () use ($resolveDateRange) {
         $user = Auth::user();
+        [$startDate, $endDate] = $resolveDateRange(request());
 
-        $customerIds = CSFForm::where('office_id', $user->office_id)
+        $csfBase = CSFForm::where('office_id', $user->office_id);
+        if ($startDate && $endDate) {
+            $csfBase->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $customerIds = (clone $csfBase)
             ->whereNotNull('customer_id')
             ->distinct()
             ->pluck('customer_id');
 
         $dimensions = Dimension::all();
 
-        $counts = CustomerAttributeRating::select('dimension_id', 'rate_score', DB::raw('count(*) as count'))
-            ->whereIn('customer_id', $customerIds)
-            ->groupBy('dimension_id', 'rate_score')
+        $ratingsQuery = CustomerAttributeRating::select('dimension_id', 'rate_score', DB::raw('count(*) as count'))
+            ->whereIn('customer_id', $customerIds);
+        if ($startDate && $endDate) {
+            $ratingsQuery->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $counts = $ratingsQuery->groupBy('dimension_id', 'rate_score')
             ->get()
             ->groupBy('dimension_id')
             ->map(function ($group) {
@@ -395,11 +489,18 @@ Route::middleware([
         return Inertia::render('Libraries/Divisions/SqdTable', [
             'sqd_rows' => $rows,
             'sqd_totals' => $totals,
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
         ]);
     })->name('libraries.overall.sqd');
 
-    Route::get('/libraries/overall/services-rating', function () {
+    Route::get('/libraries/overall/services-rating', function () use ($resolveDateRange) {
         $user = Auth::user();
+        [$startDate, $endDate] = $resolveDateRange(request());
 
         $services = Services::whereHas('division', function ($query) use ($user) {
                 $query->where('office_id', $user->office_id);
@@ -407,8 +508,13 @@ Route::middleware([
             ->orderBy('service_name')
             ->get(['id', 'service_name']);
 
-        $serviceRatings = $services->map(function ($service) use ($user) {
-            $customerIds = CSFForm::where('office_id', $user->office_id)
+        $csfBase = CSFForm::where('office_id', $user->office_id);
+        if ($startDate && $endDate) {
+            $csfBase->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $serviceRatings = $services->map(function ($service) use ($csfBase, $startDate, $endDate) {
+            $customerIds = (clone $csfBase)
                 ->where('service_id', $service->id)
                 ->whereNotNull('customer_id')
                 ->distinct()
@@ -423,6 +529,9 @@ Route::middleware([
             }
 
             $baseRatings = CustomerAttributeRating::whereIn('customer_id', $customerIds);
+            if ($startDate && $endDate) {
+                $baseRatings->whereBetween('created_at', [$startDate, $endDate]);
+            }
             $denominator = (clone $baseRatings)
                 ->whereIn('rate_score', [1, 2, 3, 4, 5])
                 ->count();
@@ -441,9 +550,14 @@ Route::middleware([
 
         return Inertia::render('Libraries/Divisions/ServicesOverallTable', [
             'service_ratings' => $serviceRatings,
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
         ]);
     })->name('libraries.overall.services_rating');
 
 
 });
-

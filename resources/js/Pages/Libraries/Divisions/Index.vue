@@ -2,13 +2,17 @@
     import AppLayout from '@/Layouts/AppLayout.vue';
     import ModalForm from '@/Pages/Account/Partials/Modal.vue';
     import { Head, Link, router } from '@inertiajs/vue3';
-    import { reactive ,ref, watch, onMounted} from 'vue';
+    import { reactive ,ref, watch, onMounted, computed} from 'vue';
     import Swal from 'sweetalert2';
     
     const props = defineProps({
   divisions: {
     type: Array,
     default: () => [],
+  },
+  filters: {
+    type: Object,
+    default: () => ({}),
   },
 });
 
@@ -19,6 +23,90 @@ const overallRatingItems = [
     { label: 'SQD-Overall Rating', href: '/libraries/overall/sqd' },
     { label: 'Services Overall Rating', href: '/libraries/overall/services-rating' },
 ];
+
+const months = [
+    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL',
+    'MAY', 'JUNE', 'JULY', 'AUGUST',
+    'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+];
+
+const quarters = [
+    'FIRST QUARTER',
+    'SECOND QUARTER',
+    'THIRD QUARTER',
+    'FOURTH QUARTER',
+];
+
+const years = computed(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 10 }, (_, index) => (currentYear - index).toString());
+});
+
+const currentYear = ref(new Date().getFullYear().toString());
+const currentMonth = ref(months[new Date().getMonth()]);
+const currentQuarter = ref(getCurrentQuarter());
+
+function getCurrentQuarter() {
+    const month = new Date().getMonth();
+    if (month <= 2) return 'FIRST QUARTER';
+    if (month <= 5) return 'SECOND QUARTER';
+    if (month <= 8) return 'THIRD QUARTER';
+    return 'FOURTH QUARTER';
+}
+
+const filterForm = reactive({
+    period_type: props.filters.period_type || 'By Month',
+    selected_month: props.filters.selected_month || currentMonth.value,
+    selected_quarter: props.filters.selected_quarter || currentQuarter.value,
+    selected_year: props.filters.selected_year || currentYear.value,
+});
+
+watch(
+    () => filterForm.period_type,
+    (value) => {
+        if (value === 'By Month') {
+            filterForm.selected_month = filterForm.selected_month || currentMonth.value;
+            filterForm.selected_year = filterForm.selected_year || currentYear.value;
+        } else if (value === 'By Quarter') {
+            filterForm.selected_quarter = filterForm.selected_quarter || currentQuarter.value;
+            filterForm.selected_year = filterForm.selected_year || currentYear.value;
+        } else if (value === 'By Year/Annual') {
+            filterForm.selected_year = filterForm.selected_year || currentYear.value;
+        }
+    }
+);
+
+const buildFilterParams = () => {
+    const params = {
+        period_type: filterForm.period_type,
+    };
+
+    if (filterForm.period_type === 'By Month') {
+        params.selected_month = filterForm.selected_month;
+        params.selected_year = filterForm.selected_year;
+    } else if (filterForm.period_type === 'By Quarter') {
+        params.selected_quarter = filterForm.selected_quarter;
+        params.selected_year = filterForm.selected_year;
+    } else if (filterForm.period_type === 'By Year/Annual') {
+        params.selected_year = filterForm.selected_year;
+    }
+
+    return params;
+};
+
+const applyFilters = () => {
+    router.get('/libraries', buildFilterParams(), {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const goToOverall = (item) => {
+    if (!item.href) {
+        return;
+    }
+    router.get(item.href, buildFilterParams());
+};
 
 const selectedItem = ref(null);
 
@@ -36,6 +124,61 @@ const selectItem = (type, item, parent = null) => {
     </template>
 
     <div class="mx-8 mt-6">
+      <v-card class="mb-4">
+        <v-card-text>
+          <v-row>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="filterForm.period_type"
+                label="Results Type"
+                variant="outlined"
+                :items="['By Month', 'By Quarter', 'By Year/Annual']"
+              />
+            </v-col>
+            <v-col v-if="filterForm.period_type === 'By Month'" cols="12" md="4">
+              <v-select
+                v-model="filterForm.selected_month"
+                label="Select Month"
+                variant="outlined"
+                :items="months"
+              />
+            </v-col>
+            <v-col v-if="filterForm.period_type === 'By Month'" cols="12" md="4">
+              <v-select
+                v-model="filterForm.selected_year"
+                label="Select Year"
+                variant="outlined"
+                :items="years"
+              />
+            </v-col>
+            <v-col v-if="filterForm.period_type === 'By Quarter'" cols="12" md="4">
+              <v-select
+                v-model="filterForm.selected_quarter"
+                label="Select Quarter"
+                variant="outlined"
+                :items="quarters"
+              />
+            </v-col>
+            <v-col v-if="filterForm.period_type === 'By Quarter'" cols="12" md="4">
+              <v-select
+                v-model="filterForm.selected_year"
+                label="Select Year"
+                variant="outlined"
+                :items="years"
+              />
+            </v-col>
+            <v-col v-if="filterForm.period_type === 'By Year/Annual'" cols="12" md="4">
+              <v-select
+                v-model="filterForm.selected_year"
+                label="Select Year"
+                variant="outlined"
+                :items="years"
+              />
+            </v-col>
+          </v-row>
+          <v-btn color="primary" @click="applyFilters">Apply</v-btn>
+        </v-card-text>
+      </v-card>
       <v-expansion-panels variant="accordion">
         <v-expansion-panel>
           <v-expansion-panel-title>Overall Rating</v-expansion-panel-title>
@@ -45,7 +188,7 @@ const selectItem = (type, item, parent = null) => {
                 v-for="item in overallRatingItems"
                 :key="item.label"
                 class="cursor-pointer"
-                @click="item.href && router.get(item.href)"
+                @click="goToOverall(item)"
                 >
                 <v-list-item-title>{{ item.label }}</v-list-item-title>
                 </v-list-item>
@@ -113,6 +256,9 @@ const selectItem = (type, item, parent = null) => {
           </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
+      <div class="mt-6 text-right">
+        <v-btn variant="outlined" prepend-icon="mdi-printer">Print</v-btn>
+      </div>
     </div>
   </AppLayout>
 </template>
