@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     sqd_rows: {
@@ -24,6 +25,11 @@ const formatPercent = (value) => `${value}%`;
         </template>
 
         <div class="mx-10 mt-6">
+            <div class="mb-4">
+                <Link href="/libraries">
+                    <v-btn variant="outlined" prepend-icon="mdi-arrow-left">Back</v-btn>
+                </Link>
+            </div>
             <v-table density="compact">
                 <thead>
                     <tr>
