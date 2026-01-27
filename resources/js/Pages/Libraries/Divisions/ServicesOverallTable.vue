@@ -4,7 +4,11 @@ import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps({
-    service_ratings: {
+    external_service_ratings: {
+        type: Array,
+        default: () => [],
+    },
+    internal_service_ratings: {
         type: Array,
         default: () => [],
     },
@@ -46,22 +50,48 @@ const backHref = computed(() => {
                     <v-btn variant="outlined" prepend-icon="mdi-arrow-left">Back</v-btn>
                 </Link>
             </div>
-            <v-table density="compact">
-                <thead>
-                    <tr>
-                        <th style="width: 48px;">#</th>
-                        <th>Services</th>
-                        <th class="text-right">Overall Rating</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(service, index) in props.service_ratings" :key="service.id">
-                        <td>{{ index + 1 }}</td>
-                        <td>{{ service.service_name }}</td>
-                        <td class="text-right">{{ formatRating(service.rating) }}</td>
-                    </tr>
-                </tbody>
-            </v-table>
+
+            <div v-if="props.external_service_ratings.length" class="mb-8">
+                <div class="text-lg font-semibold mb-2">External Services</div>
+                <v-table density="compact">
+                    <thead>
+                        <tr>
+                            <th style="width: 48px;">#</th>
+                            <th>Services</th>
+                            <th class="text-right">Overall Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(service, index) in props.external_service_ratings" :key="service.id">
+                            <td>{{ index + 1 }}</td>
+                            <td>{{ service.service_name }}</td>
+                            <td class="text-right">{{ formatRating(service.rating) }}</td>
+                        </tr>
+                    </tbody>
+                </v-table>
+            </div>
+            <div v-else class="text-sm text-gray-500 mb-8">No external services found.</div>
+
+            <div v-if="props.internal_service_ratings.length">
+                <div class="text-lg font-semibold mb-2">Internal Services</div>
+                <v-table density="compact">
+                    <thead>
+                        <tr>
+                            <th style="width: 48px;">#</th>
+                            <th>Services</th>
+                            <th class="text-right">Overall Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(service, index) in props.internal_service_ratings" :key="service.id">
+                            <td>{{ index + 1 }}</td>
+                            <td>{{ service.service_name }}</td>
+                            <td class="text-right">{{ formatRating(service.rating) }}</td>
+                        </tr>
+                    </tbody>
+                </v-table>
+            </div>
+            <div v-else class="text-sm text-gray-500">No internal services found.</div>
         </div>
     </AppLayout>
 </template>

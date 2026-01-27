@@ -195,16 +195,17 @@ Route::middleware([
                 $q->where('office_id', $user->office_id);
             })
             ->orderBy('service_name')
-            ->get(['id', 'service_name']);
+            ->get(['id', 'service_name', 'service_type']);
 
         $csfBase = CSFForm::where('office_id', $user->office_id);
         if ($startDate && $endDate) {
             $csfBase->whereBetween('created_at', [$startDate, $endDate]);
         }
 
-        $counts = (clone $csfBase)->select(
+        $serviceCounts = (clone $csfBase)->select(
                 'service_id',
-                DB::raw('count(distinct customer_id) as transactions')
+                DB::raw('count(distinct customer_id) as responses'),
+                DB::raw('count(*) as transactions')
             )
             ->whereNotNull('service_id')
             ->whereNotNull('customer_id')
@@ -212,18 +213,30 @@ Route::middleware([
             ->get()
             ->keyBy('service_id');
 
-        $service_stats = $services->map(function ($service) use ($counts) {
-            $row = $counts->get($service->id);
+        $serviceStats = $services->map(function ($service) use ($serviceCounts) {
+            $row = $serviceCounts->get($service->id);
 
             return [
                 'id' => $service->id,
                 'service_name' => $service->service_name,
+                'service_type' => $service->service_type,
+                'responses' => (int) ($row->responses ?? 0),
                 'transactions' => (int) ($row->transactions ?? 0),
             ];
         });
 
+        $internalServiceStats = $serviceStats
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'internal')
+            ->values();
+
+        $externalServiceStats = $serviceStats
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'external')
+            ->values();
+
         return Inertia::render('Libraries/Divisions/ServicesTable', [
-            'service_stats' => $service_stats,
+            'service_stats' => $serviceStats,
+            'internal_service_stats' => $internalServiceStats,
+            'external_service_stats' => $externalServiceStats,
             'filters' => [
                 'period_type' => request()->input('period_type'),
                 'selected_month' => request()->input('selected_month'),
@@ -506,7 +519,7 @@ Route::middleware([
                 $query->where('office_id', $user->office_id);
             })
             ->orderBy('service_name')
-            ->get(['id', 'service_name']);
+            ->get(['id', 'service_name', 'service_type']);
 
         $csfBase = CSFForm::where('office_id', $user->office_id);
         if ($startDate && $endDate) {
@@ -524,6 +537,7 @@ Route::middleware([
                 return [
                     'id' => $service->id,
                     'service_name' => $service->service_name,
+                    'service_type' => $service->service_type,
                     'rating' => null,
                 ];
             }
@@ -544,12 +558,23 @@ Route::middleware([
             return [
                 'id' => $service->id,
                 'service_name' => $service->service_name,
+                'service_type' => $service->service_type,
                 'rating' => $rating,
             ];
         });
 
+        $internalServiceRatings = $serviceRatings
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'internal')
+            ->values();
+
+        $externalServiceRatings = $serviceRatings
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'external')
+            ->values();
+
         return Inertia::render('Libraries/Divisions/ServicesOverallTable', [
             'service_ratings' => $serviceRatings,
+            'internal_service_ratings' => $internalServiceRatings,
+            'external_service_ratings' => $externalServiceRatings,
             'filters' => [
                 'period_type' => request()->input('period_type'),
                 'selected_month' => request()->input('selected_month'),

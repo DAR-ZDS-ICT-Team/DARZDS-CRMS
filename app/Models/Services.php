@@ -12,6 +12,7 @@ class Services extends Model
         'division_id',
         'section_id',
         'service_name',
+        'service_type',
         'slug',
     ];
 
