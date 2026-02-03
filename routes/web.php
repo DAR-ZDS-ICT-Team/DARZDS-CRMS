@@ -584,5 +584,311 @@ Route::middleware([
         ]);
     })->name('libraries.overall.services_rating');
 
+    Route::get('/libraries/report', function () use ($resolveDateRange) {
+        $user = Auth::user();
+        [$startDate, $endDate] = $resolveDateRange(request());
+
+        $services = Services::whereHas('division', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            })
+            ->orderBy('service_name')
+            ->get(['id', 'service_name', 'service_type']);
+
+        $csfBase = CSFForm::where('office_id', $user->office_id);
+        if ($startDate && $endDate) {
+            $csfBase->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $customerIds = (clone $csfBase)
+            ->whereNotNull('customer_id')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $totalCustomers = $customerIds->count();
+        $baseCustomers = Customer::whereIn('id', $customerIds);
+
+        $clientTypes = (clone $baseCustomers)
+            ->selectRaw("COALESCE(NULLIF(client_type,''),'Not Indicated') as label, COUNT(*) as count")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $ageGroups = (clone $baseCustomers)
+            ->selectRaw("COALESCE(NULLIF(age_group,''),'Not Indicated') as label, COUNT(*) as count")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $sexes = (clone $baseCustomers)
+            ->selectRaw("COALESCE(NULLIF(sex,''),'Not Indicated') as label, COUNT(*) as count")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $ccQuery = CustomerCCRating::select('cc_id', 'answer', DB::raw('count(*) as count'))
+            ->whereIn('customer_id', $customerIds);
+        if ($startDate && $endDate) {
+            $ccQuery->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $ccCounts = $ccQuery->groupBy('cc_id', 'answer')
+            ->get()
+            ->groupBy('cc_id')
+            ->map(function ($group) {
+                return $group->keyBy(function ($item) {
+                    return (string) $item->answer;
+                });
+            });
+
+        $buildCcRows = function (int $ccId, array $options) use ($ccCounts, $totalCustomers) {
+            $rows = [];
+            $answeredTotal = 0;
+            $ccSet = $ccCounts->get($ccId, collect());
+
+            foreach ($options as $option) {
+                $answerKey = (string) $option['value'];
+                $count = (int) ($ccSet->get($answerKey)->count ?? 0);
+                $answeredTotal += $count;
+                $percentage = $totalCustomers > 0 ? round(($count / $totalCustomers) * 100) : 0;
+
+                $rows[] = [
+                    'label' => $option['label'],
+                    'count' => $count,
+                    'percentage' => $percentage,
+                ];
+            }
+
+            $noAnswerCount = max(0, $totalCustomers - $answeredTotal);
+            $noAnswerPercentage = $totalCustomers > 0 ? round(($noAnswerCount / $totalCustomers) * 100) : 0;
+
+            $rows[] = [
+                'label' => 'No Answer',
+                'count' => $noAnswerCount,
+                'percentage' => $noAnswerPercentage,
+            ];
+
+            return $rows;
+        };
+
+        $ccTables = [
+            [
+                'title' => 'CC 1',
+                'rows' => $buildCcRows(1, [
+                    ['value' => 1, 'label' => "CC 1.1 I know what a CC is and I saw this office's CC."],
+                    ['value' => 2, 'label' => "CC 1.2 I know what a CC is but I did not see this office's CC."],
+                    ['value' => 3, 'label' => "CC 1.3 I learned of the CC only when I saw this office's CC."],
+                    ['value' => 4, 'label' => "CC 1.4 I do not know what a CC is and I did not see this office's CC."],
+                ]),
+            ],
+            [
+                'title' => 'CC 2',
+                'rows' => $buildCcRows(2, [
+                    ['value' => 1, 'label' => 'CC 2.1 Easy to see'],
+                    ['value' => 2, 'label' => 'CC 2.2 Somewhat easy to see'],
+                    ['value' => 3, 'label' => 'CC 2.3 Difficult to see'],
+                    ['value' => 4, 'label' => 'CC 2.4 Not visible at all'],
+                    ['value' => 5, 'label' => 'N/A'],
+                ]),
+            ],
+            [
+                'title' => 'CC 3',
+                'rows' => $buildCcRows(3, [
+                    ['value' => 1, 'label' => 'CC 3.1 Helped very much'],
+                    ['value' => 2, 'label' => 'CC 3.2 Somewhat helped'],
+                    ['value' => 3, 'label' => 'CC 3.3 Did not help'],
+                    ['value' => 4, 'label' => 'N/A'],
+                ]),
+            ],
+        ];
+
+        $dimensions = Dimension::all();
+        $ratingsQuery = CustomerAttributeRating::select('dimension_id', 'rate_score', DB::raw('count(*) as count'))
+            ->whereIn('customer_id', $customerIds);
+        if ($startDate && $endDate) {
+            $ratingsQuery->whereBetween('created_at', [$startDate, $endDate]);
+        }
+
+        $dimensionCounts = $ratingsQuery->groupBy('dimension_id', 'rate_score')
+            ->get()
+            ->groupBy('dimension_id')
+            ->map(function ($group) {
+                return $group->keyBy('rate_score');
+            });
+
+        $dimensionOrder = [
+            'responsiveness' => 'Responsiveness',
+            'reliability' => 'Reliability',
+            'access-and-facilities' => 'Access and Facilities',
+            'communication' => 'Communication',
+            'costs' => 'Costs',
+            'integrity' => 'Integrity',
+            'assurance' => 'Assurance',
+            'outcome' => 'Outcome',
+            'overall' => 'Overall Satisfaction',
+        ];
+
+        $dimensionMap = $dimensions->keyBy(function ($dimension) {
+            return strtolower($dimension->slug);
+        });
+
+        $sqdRows = [];
+        $sqdTotals = [
+            'strongly_disagree' => 0,
+            'disagree' => 0,
+            'neither' => 0,
+            'agree' => 0,
+            'strongly_agree' => 0,
+            'na' => 0,
+            'responses' => 0,
+        ];
+
+        foreach ($dimensionOrder as $slug => $label) {
+            $dimension = $dimensionMap->get($slug);
+            if (!$dimension) {
+                continue;
+            }
+
+            $dimCounts = $dimensionCounts->get($dimension->id, collect());
+            $stronglyDisagree = (int) ($dimCounts->get(1)->count ?? 0);
+            $disagree = (int) ($dimCounts->get(2)->count ?? 0);
+            $neither = (int) ($dimCounts->get(3)->count ?? 0);
+            $agree = (int) ($dimCounts->get(4)->count ?? 0);
+            $stronglyAgree = (int) ($dimCounts->get(5)->count ?? 0);
+            $na = (int) ($dimCounts->get(6)->count ?? 0);
+            $responses = $stronglyDisagree + $disagree + $neither + $agree + $stronglyAgree + $na;
+            $denominator = $responses - $na;
+            $rating = $denominator > 0 ? round((($agree + $stronglyAgree) / $denominator) * 100, 1) : 0;
+
+            $sqdRows[] = [
+                'label' => $label,
+                'strongly_disagree' => $stronglyDisagree,
+                'disagree' => $disagree,
+                'neither' => $neither,
+                'agree' => $agree,
+                'strongly_agree' => $stronglyAgree,
+                'na' => $na,
+                'responses' => $responses,
+                'rating' => $rating,
+            ];
+
+            $sqdTotals['strongly_disagree'] += $stronglyDisagree;
+            $sqdTotals['disagree'] += $disagree;
+            $sqdTotals['neither'] += $neither;
+            $sqdTotals['agree'] += $agree;
+            $sqdTotals['strongly_agree'] += $stronglyAgree;
+            $sqdTotals['na'] += $na;
+            $sqdTotals['responses'] += $responses;
+        }
+
+        $totalDenominator = $sqdTotals['responses'] - $sqdTotals['na'];
+        $sqdTotals['rating'] = $totalDenominator > 0
+            ? round((($sqdTotals['agree'] + $sqdTotals['strongly_agree']) / $totalDenominator) * 100, 1)
+            : 0;
+
+        $serviceCounts = (clone $csfBase)->select(
+                'service_id',
+                DB::raw('count(distinct customer_id) as responses'),
+                DB::raw('count(*) as transactions')
+            )
+            ->whereNotNull('service_id')
+            ->whereNotNull('customer_id')
+            ->groupBy('service_id')
+            ->get()
+            ->keyBy('service_id');
+
+        $serviceStats = $services->map(function ($service) use ($serviceCounts) {
+            $row = $serviceCounts->get($service->id);
+
+            return [
+                'id' => $service->id,
+                'service_name' => $service->service_name,
+                'service_type' => $service->service_type,
+                'responses' => (int) ($row->responses ?? 0),
+                'transactions' => (int) ($row->transactions ?? 0),
+            ];
+        });
+
+        $internalServiceStats = $serviceStats
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'internal')
+            ->values();
+
+        $externalServiceStats = $serviceStats
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'external')
+            ->values();
+
+        $serviceRatings = $services->map(function ($service) use ($csfBase, $startDate, $endDate) {
+            $customerIds = (clone $csfBase)
+                ->where('service_id', $service->id)
+                ->whereNotNull('customer_id')
+                ->distinct()
+                ->pluck('customer_id');
+
+            if ($customerIds->isEmpty()) {
+                return [
+                    'id' => $service->id,
+                    'service_name' => $service->service_name,
+                    'service_type' => $service->service_type,
+                    'rating' => null,
+                ];
+            }
+
+            $baseRatings = CustomerAttributeRating::whereIn('customer_id', $customerIds);
+            if ($startDate && $endDate) {
+                $baseRatings->whereBetween('created_at', [$startDate, $endDate]);
+            }
+            $denominator = (clone $baseRatings)
+                ->whereIn('rate_score', [1, 2, 3, 4, 5])
+                ->count();
+            $positive = (clone $baseRatings)
+                ->whereIn('rate_score', [4, 5])
+                ->count();
+
+            $rating = $denominator > 0 ? round(($positive / $denominator) * 100, 2) : null;
+
+            return [
+                'id' => $service->id,
+                'service_name' => $service->service_name,
+                'service_type' => $service->service_type,
+                'rating' => $rating,
+            ];
+        });
+
+        $internalServiceRatings = $serviceRatings
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'internal')
+            ->values();
+
+        $externalServiceRatings = $serviceRatings
+            ->filter(fn ($service) => strtolower($service['service_type'] ?? '') === 'external')
+            ->values();
+
+        return Inertia::render('Libraries/Divisions/ReportPreview', [
+            'data' => [
+                'internal_service_stats' => $internalServiceStats,
+                'external_service_stats' => $externalServiceStats,
+                'client_types' => $clientTypes,
+                'age_groups' => $ageGroups,
+                'sexes' => $sexes,
+                'total_customers' => $totalCustomers,
+                'cc_tables' => $ccTables,
+                'sqd_rows' => $sqdRows,
+                'sqd_totals' => $sqdTotals,
+                'internal_service_ratings' => $internalServiceRatings,
+                'external_service_ratings' => $externalServiceRatings,
+            ],
+            'form' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
+            'filters' => [
+                'period_type' => request()->input('period_type'),
+                'selected_month' => request()->input('selected_month'),
+                'selected_quarter' => request()->input('selected_quarter'),
+                'selected_year' => request()->input('selected_year'),
+            ],
+        ]);
+    })->name('libraries.report');
+
 
 });

@@ -108,6 +108,10 @@ const goToOverall = (item) => {
     router.get(item.href, buildFilterParams());
 };
 
+const goToReport = () => {
+    router.get('/libraries/report', buildFilterParams());
+};
+
 const selectedItem = ref(null);
 
 const selectItem = (type, item, parent = null) => {
@@ -257,7 +261,7 @@ const selectItem = (type, item, parent = null) => {
         </v-expansion-panel>
       </v-expansion-panels>
       <div class="mt-6 text-right">
-        <v-btn variant="outlined" prepend-icon="mdi-printer">Print</v-btn>
+        <v-btn variant="outlined" prepend-icon="mdi-printer" @click="goToReport">Print</v-btn>
       </div>
     </div>
   </AppLayout>

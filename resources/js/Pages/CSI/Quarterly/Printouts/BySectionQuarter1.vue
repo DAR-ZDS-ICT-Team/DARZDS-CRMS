@@ -13,6 +13,7 @@
         };
 </script>
 <template>
+    //Document Title
     <div class="mb-3 print-id print">
         <h5 style="text-transform:capitalize; text-align:center; margin-top: -8px">
            <div style="display:flex;justify-content:center;align-items:center;">
@@ -29,6 +30,7 @@
                     </span>
                 </div>  
         </h5><br>
+        //
         <div style="display: flex; justify-content: space-between; margin-top:-26px">
             <div style="font-size: 12px;">
                 Division: <u>{{ data.division.division_name }}</u>
@@ -142,7 +144,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td>4</td>
+                        <td>4</td>   
                         <td style="text-align: left">Not visible at all</td>
                         <td>
                             <span v-if="data.cc_data.cc2_data.cc2_ans4 > 0">
