@@ -1,6 +1,6 @@
 <script setup>
     import AppLayout from '@/Layouts/AppLayout.vue';
-    import ModalForm from '@/Pages/Account/Partials/Modal.vue';
+    import ModalForm from '@/Pages/Settings/Accounts/Partials/Modal.vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import { reactive ,ref, watch, onMounted} from 'vue';
     import Swal from 'sweetalert2';
@@ -61,7 +61,7 @@
     watch(
     () => search.value,
         (search) => {
-            router.get('/accounts', { search },{ preserveState: true})
+            router.get('/settings/accounts', { search },{ preserveState: true})
         }
         
     );
@@ -78,7 +78,7 @@
 
     let page_number = 1;
     const getAccounts = async (page) => {
-       router.visit('/accounts?page=' + page , { preserveState: true});
+       router.visit('/settings/accounts?page=' + page , { preserveState: true});
        page_number = page;
     };
 
@@ -92,6 +92,14 @@
                 Accounts
             </h2>
         </template>
+
+        <div class="mx-8 mt-6">
+            <div class="mb-4">
+                <Link href="/settings">
+                    <v-btn variant="outlined" prepend-icon="mdi-arrow-left">Back</v-btn>
+                </Link>
+            </div>
+        </div>
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">

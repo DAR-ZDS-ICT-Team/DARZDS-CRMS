@@ -57,19 +57,20 @@ class ServicesController extends Controller
         $request->validate([
             'division_id' => 'required|exists:divisions,id',
             'service_name' => 'required|string|max:255',
-            'service_description' => 'nullable|string',
-            'service_availability' => 'nullable|string',
-            'service_active' => 'nullable|boolean',
+            'service_type' => 'nullable|string|max:50',
             'section_id' => 'nullable|exists:sections,id',
+            'service_url' => 'nullable|string|max:255',
+            'is_disabled' => 'nullable|boolean',
         ]);
 
         Services::create([
             'service_name' => strtoupper($request->service_name),
-            'service_description' => $request->service_description,
-            'service_availability' => $request->service_availability,
-            'service_active' => $request->has('service_active') ? $request->service_active : true,
+            'slug' => Str::slug($request->service_name, '-'),
             'division_id' => $request->division_id,
             'section_id' => $request->section_id,
+            'service_type' => $request->service_type,
+            'service_url' => $request->service_url,
+            'is_disabled' => $request->has('is_disabled') ? (int) $request->is_disabled : 0,
         ]);
 
         return back()->with('message', 'Service added successfully.');
@@ -82,21 +83,22 @@ class ServicesController extends Controller
     {
         $request->validate([
             'service_name' => 'required|string|max:255',
-            'service_description' => 'nullable|string',
-            'service_availability' => 'nullable|string',
-            'service_active' => 'nullable|boolean',
+            'service_type' => 'nullable|string|max:50',
             'division_id' => 'required|exists:divisions,id',
             'section_id' => 'nullable|exists:sections,id',
+            'service_url' => 'nullable|string|max:255',
+            'is_disabled' => 'nullable|boolean',
         ]);
 
         $service = Services::findOrFail($id);
         $service->update([
             'service_name' => strtoupper($request->service_name),
-            'service_description' => $request->service_description,
-            'service_availability' => $request->service_availability,
-            'service_active' => $request->has('service_active') ? $request->service_active : true,
+            'slug' => Str::slug($request->service_name, '-'),
             'division_id' => $request->division_id,
             'section_id' => $request->section_id,
+            'service_type' => $request->service_type,
+            'service_url' => $request->service_url,
+            'is_disabled' => $request->has('is_disabled') ? (int) $request->is_disabled : 0,
         ]);
 
         return back()->with('message', 'Service updated successfully.');

@@ -14,6 +14,7 @@ use App\Http\Controllers\SubSectionController;
 use App\Http\Controllers\SurveyFormController;
 use App\Http\Controllers\DivisionSectionController;
 use App\Http\Controllers\ServicesController;
+use App\Http\Controllers\SettingsController;
 use App\Models\Division;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Services;
@@ -125,6 +126,25 @@ Route::middleware([
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::get('/settings/accounts', [AccountController::class, 'index'])->name('settings.accounts');
+    Route::get('/settings/offices', [OfficeController::class, 'index'])->name('settings.offices');
+    Route::get('/settings/divisions', [SettingsController::class, 'divisions'])->name('settings.divisions');
+    Route::get('/settings/sections', [SettingsController::class, 'sections'])->name('settings.sections');
+    Route::get('/settings/services', [SettingsController::class, 'services'])->name('settings.services');
+
+    Route::post('/settings/divisions/store', [DivisionSectionController::class, 'storeDivision'])->name('settings.divisions.store');
+    Route::post('/settings/divisions/update', [DivisionSectionController::class, 'updateDivision'])->name('settings.divisions.update');
+    Route::post('/settings/divisions/destroy', [DivisionSectionController::class, 'destroyDivision'])->name('settings.divisions.destroy');
+
+    Route::post('/settings/sections/store', [DivisionSectionController::class, 'storeSection'])->name('settings.sections.store');
+    Route::post('/settings/sections/update', [DivisionSectionController::class, 'updateSection'])->name('settings.sections.update');
+    Route::post('/settings/sections/destroy', [DivisionSectionController::class, 'destroySection'])->name('settings.sections.destroy');
+
+    Route::post('/settings/services/store', [ServicesController::class, 'storeServices'])->name('settings.services.store');
+    Route::post('/settings/services/update', [ServicesController::class, 'updateService'])->name('settings.services.update');
+    Route::post('/settings/services/destroy', [ServicesController::class, 'destroyService'])->name('settings.services.destroy');
     Route::get('/profile', function () {
         return Inertia::render('Profile/Show');
     })->name('profile');
@@ -142,8 +162,8 @@ Route::middleware([
     // Service routes 
     Route::post('/divisions/services', [ServicesController::class, 'index'])->name('services_index');
     Route::post('/divisions/service/store', [ServicesController::class, 'storeServices'])->name('store_services');
-    Route::post('/divisions/service/update', [ServicesController::class, 'updateServices'])->name('update_services');
-    Route::post('/divisions/service/destroy', [ServicesController::class, 'destroyServices'])->name('destroy_services');
+    Route::post('/divisions/service/update', [ServicesController::class, 'updateService'])->name('update_services');
+    Route::post('/divisions/service/destroy', [ServicesController::class, 'destroyService'])->name('destroy_services');
     // Route::post('/divisions/service/section_services', [ServicesController::class, 'sectionServicesIndex'])->name('section_services');
     // Route::post('/divisions/service/division_services', [ServicesController::class, 'divisionServicesIndex'])->name('division_services');
     // Route::post('/divisions/service/add', [ServicesController::class, 'addServiceToDivision']);

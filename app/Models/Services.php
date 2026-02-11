@@ -13,6 +13,8 @@ class Services extends Model
         'section_id',
         'service_name',
         'service_type',
+        'service_url',
+        'is_disabled',
         'slug',
     ];
 

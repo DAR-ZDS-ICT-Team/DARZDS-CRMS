@@ -1,6 +1,6 @@
 <script setup>
     import AppLayout from '@/Layouts/AppLayout.vue';
-    import ModalForm from '@/Pages/Libraries/Offices/Modal.vue';
+    import ModalForm from '@/Pages/Settings/Offices/Modal.vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import { reactive ,ref, watch, onMounted} from 'vue';
     import Swal from 'sweetalert2';
@@ -20,7 +20,7 @@
     watch(
     () => search.value,
         (search) => {
-            router.get('/offices', { search },{ preserveState: true})
+            router.get('/settings/offices', { search },{ preserveState: true})
         }
         
     );
@@ -44,6 +44,14 @@
                 Offices
             </h2>
         </template>
+
+        <div class="mx-8 mt-6">
+            <div class="mb-4">
+                <Link href="/settings">
+                    <v-btn variant="outlined" prepend-icon="mdi-arrow-left">Back</v-btn>
+                </Link>
+            </div>
+        </div>
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">

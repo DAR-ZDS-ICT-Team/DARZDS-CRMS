@@ -92,13 +92,14 @@ class DivisionSectionController extends Controller
     /**
      * UPDATE - Division
      */
-    public function updateDivision(Request $request, $id)
+    public function updateDivision(Request $request, $id = null)
     {
         $request->validate([
             'division_name' => 'required|string|max:255',
         ]);
 
-        $division = Division::findOrFail($id);
+        $divisionId = $id ?? $request->id;
+        $division = Division::findOrFail($divisionId);
         $division->update([
             'division_name' => strtoupper($request->division_name),
             'slug' => Str::slug($request->division_name, '-'),
@@ -110,13 +111,14 @@ class DivisionSectionController extends Controller
     /**
      * UPDATE - Section
      */
-    public function updateSection(Request $request, $id)
+    public function updateSection(Request $request, $id = null)
     {
         $request->validate([
             'section_name' => 'required|string|max:255',
         ]);
 
-        $section = Section::findOrFail($id);
+        $sectionId = $id ?? $request->id;
+        $section = Section::findOrFail($sectionId);
         $section->update([
             'section_name' => strtoupper($request->section_name),
         ]);
@@ -127,9 +129,10 @@ class DivisionSectionController extends Controller
     /**
      * DELETE - Division
      */
-    public function destroyDivision($id)
+    public function destroyDivision(Request $request, $id = null)
     {
-        $division = Division::findOrFail($id);
+        $divisionId = $id ?? $request->id;
+        $division = Division::findOrFail($divisionId);
         $division->delete();
 
         return back()->with('message', 'Division deleted successfully.');
@@ -138,9 +141,10 @@ class DivisionSectionController extends Controller
     /**
      * DELETE - Section
      */
-    public function destroySection($id)
+    public function destroySection(Request $request, $id = null)
     {
-        $section = Section::findOrFail($id);
+        $sectionId = $id ?? $request->id;
+        $section = Section::findOrFail($sectionId);
         $section->delete();
 
         return back()->with('message', 'Section deleted successfully.');

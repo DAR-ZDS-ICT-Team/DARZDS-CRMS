@@ -1,6 +1,6 @@
 <script setup>
     import AppLayout from '@/Layouts/AppLayout.vue';
-    import ModalForm from '@/Pages/Account/Partials/Modal.vue';
+    import ModalForm from '@/Pages/Settings/Accounts/Partials/Modal.vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import { reactive ,ref, watch, onMounted} from 'vue';
     import Swal from 'sweetalert2';
@@ -59,7 +59,7 @@
     watch(
     () => search.value,
         (search) => {
-            router.get('/accounts', { search },{ preserveState: true})
+            router.get('/settings/accounts', { search },{ preserveState: true})
         }
         
     );
@@ -84,7 +84,7 @@
             </h2>
         </template>
        <v-row class="mx-15 mt-5">
-                <Link href="/accounts">
+                <Link href="/settings/accounts">
                     <div class="py-5 ml-5 mr-5 " style="width:250px">
                         <div class="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
                             <v-icon size="x-large" class="p-3" >mdi-account</v-icon>

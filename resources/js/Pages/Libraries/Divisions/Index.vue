@@ -1,6 +1,6 @@
 <script setup>
     import AppLayout from '@/Layouts/AppLayout.vue';
-    import ModalForm from '@/Pages/Account/Partials/Modal.vue';
+    import ModalForm from '@/Pages/Settings/Accounts/Partials/Modal.vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import { reactive ,ref, watch, onMounted, computed} from 'vue';
     import Swal from 'sweetalert2';
