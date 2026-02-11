@@ -124,7 +124,77 @@ Route::middleware([
     });
 
     Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+        $user = Auth::user();
+        $currentYear = now()->year;
+        $previousYear = $currentYear - 1;
+
+        $csfBase = CSFForm::query();
+        if ($user) {
+            $csfBase->where('office_id', $user->office_id);
+        }
+
+        $currentCount = (clone $csfBase)
+            ->whereYear('created_at', $currentYear)
+            ->count();
+        $previousCount = (clone $csfBase)
+            ->whereYear('created_at', $previousYear)
+            ->count();
+
+        $quarter = (int) ceil(now()->month / 3);
+        $quarterStartMonth = (($quarter - 1) * 3) + 1;
+        $quarterStart = Carbon::create($currentYear, $quarterStartMonth, 1)->startOfDay();
+        $quarterEnd = (clone $quarterStart)->addMonths(2)->endOfMonth()->endOfDay();
+
+        $services = Services::whereHas('division', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            })
+            ->orderBy('service_name')
+            ->get(['id', 'service_name']);
+
+        $yearlyCounts = (clone $csfBase)
+            ->whereYear('created_at', $currentYear)
+            ->whereNotNull('service_id')
+            ->select('service_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('service_id')
+            ->get()
+            ->keyBy('service_id');
+
+        $quarterlyCounts = (clone $csfBase)
+            ->whereBetween('created_at', [$quarterStart, $quarterEnd])
+            ->whereNotNull('service_id')
+            ->select('service_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('service_id')
+            ->get()
+            ->keyBy('service_id');
+
+        $yearlyItems = $services->map(function ($service) use ($yearlyCounts) {
+            return [
+                'label' => $service->service_name,
+                'value' => (int) ($yearlyCounts[$service->id]->total ?? 0),
+            ];
+        });
+
+        $quarterlyItems = $services->map(function ($service) use ($quarterlyCounts) {
+            return [
+                'label' => $service->service_name,
+                'value' => (int) ($quarterlyCounts[$service->id]->total ?? 0),
+            ];
+        });
+
+        return Inertia::render('Dashboard', [
+            'yearly_comparison' => [
+                'labels' => [$previousYear, $currentYear],
+                'values' => [$previousCount, $currentCount],
+            ],
+            'service_pie_yearly' => [
+                'title' => "{$currentYear} Service Share",
+                'items' => $yearlyItems,
+            ],
+            'service_pie_quarterly' => [
+                'title' => "Q{$quarter} {$currentYear} Service Share",
+                'items' => $quarterlyItems,
+            ],
+        ]);
     })->name('dashboard');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
