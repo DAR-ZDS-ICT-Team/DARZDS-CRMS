@@ -23,16 +23,18 @@ const props = defineProps({
         default: false,
     },
     data: {
-        type: Boolean,
+        type: Object,
     },
     generated:{
-        type: Boolean,
+        type: Object,
     }
 
 });
 
 
 const show_form_modal = ref(false);
+const is_printing = ref(false);
+
 watch(
     () => props.value,
     (value) => {
@@ -50,60 +52,89 @@ const form_assignatorees = reactive({
 
 
 const printPReview = async () => {
-   
-   
     emit("input", false);
 
-    form.id= '';
-    form.name='';
-    form.designation='';
+    props.form.id= '';
+    props.form.name='';
+    props.form.designation='';
 };
 
 const closeDialog = (value) => {
     emit("input", value);
 };
 
-  const is_printing = ref(false);
-  const printCSIReport = async () => {
-      is_printing.value = true;
-      //  router.get('/generate-pdf', form , { preserveState: true, preserveScroll: true})
-      //Create an instance of Printd
-        let d = await new Printd();
-        let css = ` 
-          @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;800&family=Roboto:wght@100;300;400;500;700;900&display=swap');
-          * {
-              font-family: 'Time New Roman'
-          }
-          .new-page {
-              page-break-before: always;
-          }
-          .th-color{
-              background-color: #8fd1e8;
-          }
-          .text-center{
-            text-align: center;
-          }
-          .text-right{
-            text-align:end
-          }
-          table {
-            border-collapse: collapse;
-            width: 100%; /* Optional: Set a width for the table */
-          }
+//   const is_printing = ref(false);
 
-          tr, th, td {
-            border: 1px solid rgb(145, 139, 139); /* Optional: Add a border for better visibility */
-            padding: 3px; /* Optional: Add padding for better spacing */
-          }
-          .page-break {
-            page-break-before: always; /* or page-break-after: always; */
-          }
-
-        `;
-
-       d.print(document.querySelector(".print-id"), [css]);
-
-        emit("input", false);
+const printCSIReport = async () => {
+    is_printing.value = true;
+    
+    // Add a delay to ensure content is fully rendered
+    setTimeout(async () => {
+        try {
+            console.log("Starting print process");
+            
+            // The BySectionMonthlyReport component should be rendered within this component
+            // Try to find the print-id element
+            let printElement = document.querySelector(".print-id");
+            console.log("Print element found:", !!printElement);
+            
+            if (!printElement) {
+                console.error("Print target not found");
+                alert("Error: Could not find content to print. Make sure the report is generated.");
+                is_printing.value = false;
+                return;
+            }
+            
+            let d = new Printd();
+            let css = ` 
+                @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;800&family=Roboto:wght@100;300;400;500;700;900&display=swap');
+                * {
+                    font-family: 'Times New Roman'
+                }
+                .new-page {
+                    page-break-before: always;
+                }
+                .th-color{
+                    background-color: #8fd1e8;
+                }
+                .text-center{
+                    text-align: center;
+                }
+                .text-right{
+                    text-align:end
+                }
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                }
+                tr, th, td {
+                    border: 1px solid rgb(145, 139, 139);
+                    padding: 3px;
+                }
+                .page-break {
+                    page-break-before: always;
+                }
+                @media print {
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+            `;
+            
+            // Print the element
+            await d.print(printElement, [css]);
+            
+            // Close the modal after printing
+            closeDialog(false);
+            
+        } catch (error) {
+            console.error("Print error:", error);
+            alert("Error printing: " + error.message);
+        } finally {
+            is_printing.value = false;
+        }
+    }, 500); // 500ms delay to ensure content is rendered
 };
 
 
@@ -172,7 +203,17 @@ const closeDialog = (value) => {
     </v-dialog>
 
     <!-- Printouts-->
-    <BySectionMonthlyReport v-if="form.csi_type == 'By Month'" :form="form"  :data="data" :form_assignatorees="form_assignatorees" />
+    <!-- <BySectionMonthlyReport v-if="form.csi_type == 'By Month'" :form="form"  :data="data" :form_assignatorees="form_assignatorees" /> -->
+    
+    <div style="display: none;">
+        <BySectionMonthlyReport 
+            v-if="form.csi_type == 'By Month'" 
+            :form="form" 
+            :data="data" 
+            :form_assignatorees="form_assignatorees" 
+            class="print-id"
+        />
+    </div>
  
 </template>
 <style src="vue-multiselect/dist/vue-multiselect.css"></style>

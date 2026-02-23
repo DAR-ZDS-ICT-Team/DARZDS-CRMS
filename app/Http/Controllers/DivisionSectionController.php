@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 use App\Models\Section;
+use App\Models\Services;
 use Inertia\Inertia;
 use App\Models\SubSection;
+use App\Models\SubSectionType;
 use App\Models\Division;
 use App\Models\SectionSubSection;
 use Illuminate\Support\Str;
@@ -11,104 +13,140 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\Division as DivisionSectionsResource;
 use App\Http\Resources\SectionSubSection as SectionSubSectionResource;
+use App\Http\Resources\SubSectionType as SubSectionTypeResource;
 
 
 class DivisionSectionController extends Controller
 {
-    public function index()
+    /**
+     * Display sections or services for a division
+     */
+    public function index($division_id)
     {
-        $division_sections = Division::all();
+        $division = Division::findOrFail($division_id);
 
-        $data = DivisionSectionsResource::collection($division_sections);
-        $user = Auth::user();
+        // Get all sections for this division
+        $sections = Section::where('division_id', $division_id)->get();
 
-        return Inertia::render('Libraries/Division-Sections/Index')
-            ->with('division_sections', $data)
-            ->with('user',  $user);
+        if ($sections->isNotEmpty()) {
+            return Inertia::render('Sections/Index', [
+                'sections' => $sections,
+                'division' => $division
+            ]);
+        }
+
+        // No sections → get services directly under division
+        $services = Services::where('division_id', $division_id)
+                            ->whereNull('section_id')
+                            ->get();
+
+        if ($services->isNotEmpty()) {
+            return Inertia::render('Services/Index', [
+                'services' => $services,
+                'division' => $division,
+                'section'  => null
+            ]);
+        }
+
+        // If neither → go to survey form
+        return Inertia::render('Survey/Form', [
+            'division' => $division
+        ]);
     }
 
-    public function getDivisionSections(Request $request)
-    {
-        $division_sections = Section::where('division_id',$request->code)
-            ->get()->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'section_name' => $item->section_name
-                ];
-            });
-
-        return $division_sections;
-    }    
-
-
+    /**
+     * CREATE - Division
+     */
     public function storeDivision(Request $request)
     {
-        $division = new Division();
-        $division->division_name = strtoupper($request->division_name);
-        $division->slug = Str::slug($request->division_name, '-');
-        $division->save();
+        $request->validate([
+            'division_name' => 'required|string|max:255',
+        ]);
+
+        Division::create([
+            'division_name' => strtoupper($request->division_name),
+            'slug' => Str::slug($request->division_name, '-'),
+        ]);
+
+        return back()->with('message', 'Division created successfully.');
     }
 
-    
+    /**
+     * CREATE - Section
+     */
     public function storeSection(Request $request)
     {
-        //dd($request->all());
-        $section = new Section();
-        $section->division_id = $request->division_id;
-        $section->section_name = strtoupper($request->section_name);
-        $section->save();
+        $request->validate([
+            'division_id' => 'required|exists:divisions,id',
+            'section_name' => 'required|string|max:255',
+        ]);
+
+        Section::create([
+            'division_id' => $request->division_id,
+            'section_name' => strtoupper($request->section_name),
+        ]);
+
+        return back()->with('message', 'Section created successfully.');
     }
 
-
-
-    public function section_index(Request $request)
+    /**
+     * UPDATE - Division
+     */
+    public function updateDivision(Request $request, $id = null)
     {
-        //get user
-        $user = Auth::user();
+        $request->validate([
+            'division_name' => 'required|string|max:255',
+        ]);
 
-        $division = $request->division;
-        $section = $request->section;
+        $divisionId = $id ?? $request->id;
+        $division = Division::findOrFail($divisionId);
+        $division->update([
+            'division_name' => strtoupper($request->division_name),
+            'slug' => Str::slug($request->division_name, '-'),
+        ]);
 
-        // get section sub sections
-        $section_sub_sections = SectionSubSection::where('section_id',$request->section['id'])->get();
-        $section_sub_sections = SectionSubSectionResource::collection($section_sub_sections);
-
-        $sub_sections = $section_sub_sections->pluck('sub_sectiont');
-
-        return Inertia::render('Libraries/Division-Sections/Views/SubDivisionView')
-        ->with('section', $section)
-        ->with('division', $division)
-        ->with('sub_sections', $sub_sections)
-        ->with('user',  $user);
- 
+        return back()->with('message', 'Division updated successfully.');
     }
 
-    public function sub_section_type($request)
+    /**
+     * UPDATE - Section
+     */
+    public function updateSection(Request $request, $id = null)
     {
-        //dd($request->all());
+        $request->validate([
+            'section_name' => 'required|string|max:255',
+        ]);
 
-        //get user
-        $user = Auth::user();
+        $sectionId = $id ?? $request->id;
+        $section = Section::findOrFail($sectionId);
+        $section->update([
+            'section_name' => strtoupper($request->section_name),
+        ]);
 
-        $division = $request->division;
-        $section = $request->section;
-        $sub_section = $request->sub_section;
-
-        if($sub_section){  
-            $sub_section_types = SubSectionType::where('sub_section_id',$request->sub_section['id'])->get();
-            $sub_section_types = SubSectionTypeResource::collection($sub_section_types);
-     
-            $sub_section_types = $sub_section_types->pluck('type_name');
-    
-            return $sub_section_types;
-        }
-        else{
-            return [];
-        }
-
-       
+        return back()->with('message', 'Section updated successfully.');
     }
 
+    /**
+     * DELETE - Division
+     */
+    public function destroyDivision(Request $request, $id = null)
+    {
+        $divisionId = $id ?? $request->id;
+        $division = Division::findOrFail($divisionId);
+        $division->delete();
 
-    
+        return back()->with('message', 'Division deleted successfully.');
+    }
+
+    /**
+     * DELETE - Section
+     */
+    public function destroySection(Request $request, $id = null)
+    {
+        $sectionId = $id ?? $request->id;
+        $section = Section::findOrFail($sectionId);
+        $section->delete();
+
+        return back()->with('message', 'Section deleted successfully.');
+    }
 }

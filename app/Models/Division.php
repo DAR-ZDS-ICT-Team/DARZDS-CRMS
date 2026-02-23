@@ -9,6 +9,7 @@ class Division extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'office_id',
         'division_name',
         'slug',
     ];
@@ -16,6 +17,11 @@ class Division extends Model
     public function sections()
     {
         return $this->hasMany(Section::class);
+    }
+
+    public function services()
+    {
+        return $this->hasMany(Services::class);
     }
 
 

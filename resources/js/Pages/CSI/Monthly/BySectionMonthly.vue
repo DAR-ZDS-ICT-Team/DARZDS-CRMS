@@ -29,18 +29,24 @@
                 </h5><br>
                 <div style="display: flex; justify-content: space-between;margin-top: -20px; margin-bottom: 10px" v-if="data.division">
                     <div style="font-size: 12px;">
-                        Division : <u>{{ data.division.division_name }}</u> <br>
-                       
-                    </div>
-                    <div style="font-size: 12px" v-if="data.section && data.section.data && data.section.data.length > 0 && data.section.data[0]">  
-                       Section : <u v-if="data.section.data.length > 0">{{ data.section.data[0].section_name }}</u><br>
-                                <u v-if="form.client_type" style="margin-left: 75px">{{ form.client_type }}</u> <br v-if="form.client_type">
-                                <u v-if="data.sub_section[0]">{{ data.sub_section[0].sub_section_name }}</u>
-                                <u v-if="form.sub_section_type" style="margin-left: 5px">{{ form.sub_section_type.type_name }}</u>
-                    </div>
-                    
-                </div>
+                Division: <u>{{ data.division.division_name }}</u>
+            </div>
 
+            <!-- If sections exist -->
+            <div style="font-size: 12px" v-if="data.section && data.section.data && data.section.data.length > 0">
+                Section: <u>{{ data.section.data[0].section_name }}</u><br>
+                <!-- Only the selected service -->
+                <div style="margin-left: 20px" v-if="data.service && data.service.data && data.service.data.length > 0">
+                    Service: <u>{{ data.service.data[0].service_name }}</u>
+                </div>
+            </div>
+
+            <!-- If no section but direct service from division -->
+            <div style="font-size: 12px" v-else-if="data.service && data.service.data && data.service.data.length > 0">
+                Service: <u>{{ data.service.data[0].service_name }}</u>
+            </div>
+                    
+            </div>
                 <div style="margin-top: 20px; margin-bottom: 20px;text-align: center" v-if="data.cc_data">
                     <div style="font-size: 12px;margin-right:20px; margin-bottom:15px; font-weight: bold;text-align: left">
                         PART I: CITIZEN'S CHARTER(CC)
@@ -393,23 +399,23 @@
 
                  <div style="margin-top: 10px ; font-size: 13px">
                     ANALYSIS : 
-                    <div v-if="data.section && data.section.data && data.section.data.length > 0 && data.section.data[0]"  style="text-align: justify; margin: 5px">
-                        The  <span>{{ data.section.data[0].section_name }}</span> section had <span>{{ data.total_respondents }}</span> respondents who rated the CSF, 
+                    <div style="text-align: justify; margin: 5px">
+                        The  <span>{{ data.service.data[0].service_name }}</span> section had <span>{{ data.total_respondents }}</span> respondents who rated the CSF, 
                         and <span>{{ data.total_vss_respondents }}</span> (or <span>{{ data.percentage_vss_respondents }}</span>%) of those respondents rated 
-                        the section with satisfied responses (VS & S) for all service quality attributes. The <span>{{ data.section.data[0].section_name }}</span> section had a 
+                        the section with satisfied responses (VS & S) for all service quality attributes. The <span>{{ data.service.data[0].service_name }}</span> section had a 
                         <span>{{ data.customer_satisfaction_index }}</span>% Customer Satisfaction Index as well as a Net Promoter Score of <span>{{ data.net_promoter_score }}</span>. 
-                        The Customer Satisfaction Rating for the <span>{{ data.section.data[0].section_name }}</span> 
+                        The Customer Satisfaction Rating for the <span>{{ data.service.data[0].service_name }}</span> 
                         section is <span>{{ data.customer_satisfaction_rating }}</span>%, 
                         which <span v-if="data.customer_satisfaction_rating < 95">does not</span> achieved its functional objective of 95% of customer surveyed are at least satisfied with the services.
                     </div>
-                    <div v-else  style="text-align: justify; margin: 5px">
+                    <!-- <div v-else  style="text-align: justify; margin: 5px">
                         The  <span>{{ data.division.division_name }}</span> had <span>{{ data.total_respondents }}</span> respondents who rated the CSF, 
                         and <span>{{ data.total_vss_respondents }}</span> (or <span>{{ data.percentage_vss_respondents }}</span>%) of those respondents rated 
                         the division with satisfied responses (VS & S) for all service quality attributes. The <span>{{ data.division.division_name }}</span> had a 
                         <span>{{ data.customer_satisfaction_index }}</span>% Customer Satisfaction Index as well as a Net Promoter Score of <span>{{ data.net_promoter_score }}</span>. 
                         The Customer Satisfaction Rating for the <span>{{ data.division.division_name }}</span> is <span>{{ data.customer_satisfaction_rating }}</span>%, 
                         which <span v-if="data.customer_satisfaction_rating < 95">does not</span> achieved its functional objective of 95% of customer surveyed are at least satisfied with the services.
-                    </div>
+                    </div> -->
                 </div>
 
                 <div style="margin-top: 20px; display: flex;  font-size: 13px">

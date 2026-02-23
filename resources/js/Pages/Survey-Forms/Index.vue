@@ -6,17 +6,19 @@ import AOS from 'aos';
 import 'aos/dist/aos.css';
 import Swal from 'sweetalert2';
 
- const props = defineProps({
-        cc_questions: Object,
-        dimensions: Object, 
-        division: Object,
-        section: Object,
-        sub_section: Object,  
-        status: String,
-        errors: Object,
-        captcha_img: String,
-        date_display: String,
-    });
+const props = defineProps({
+    cc_questions: Object,
+    dimensions: Object, 
+    office: Object,
+    division: Object,
+    section: Object,
+    services: Object,  // Add this for services
+    subServices: Object,
+    status: String,
+    errors: Object,
+    captcha_img: String,
+    date_display: Array,  // Changed from String to Array since the controller is passing an array
+});
 
 
 const cc1_options = [
@@ -77,17 +79,21 @@ const form = reactive({
     office_id: null,
     division_id: null,
     section_id: null,
-    sub_section_id: null,
+    service_id: null,
+    sub_service_id: null,
+
     date: getCurrentDate(),
     client_type: null,
-    sub_section_type: null,
+
     email: null,
     name: null,
     sex: null,
     age_group: null,
+
     pwd: 0,
     pregnant: 0,
     senior_citizen: 0,
+
     cc1: null,
     cc2: null,
     cc3: null,
@@ -95,6 +101,7 @@ const form = reactive({
     comment: null,
     is_complaint: false,
     indication: null,
+    
     // signature: null,
     dimension_form: {
         id: [],
@@ -133,22 +140,28 @@ const getDimension = (index,dimension_id) => {
 onMounted(() => {
     AOS.init();
 
-    // signaturePad.value = new SignaturePad(signaturePad.value);
-    // const canvas = signaturePad.value;
-    // canvas.width = 400;
-    // canvas.height = 200;
-
     const currentURL = window.location.href;
-    // Extract query parameters from the URL
     const searchParams = new URLSearchParams(currentURL.split("?")[1]);
 
-    // Get office_id, division_id, and section_id values
+    // Helper to clean "undefined" values
+    const safeGet = (key) => {
+        const value = searchParams.get(key);
+        return (value && value !== 'undefined') ? value : null;
+    };
+
+    // form.office_id = safeGet("office_id");
+    // form.division_id = safeGet("division_id");
+    // form.section_id = safeGet("section_id");
+    // form.service_id = safeGet("service_id");
+    // form.sub_service_id = safeGet("sub_service_id");
+    // form.current_url = currentURL;
+
     form.office_id = searchParams.get("office_id");
     form.division_id = searchParams.get("division_id");
     form.section_id = searchParams.get("section_id");
-    form.sub_section_id = searchParams.get("sub_section_id");
-    form.sub_section_type = searchParams.get("sub_section_type");
-    form.current_url =currentURL; 
+    form.service_id = searchParams.get("service_id");
+    form.sub_service_id = searchParams.get("sub_service_id");
+    form.current_url = currentURL;
 
     Swal.fire({
         title: "Disclaimer",
@@ -157,6 +170,7 @@ onMounted(() => {
         text: "The DAR is committed to protect and respect your personal data privacy. All information collected will only be used for documentation purposes and will not be published in any platform.",
     });
 });
+
 
 
 
@@ -297,6 +311,7 @@ watch(
 
             <v-row justify="center" class="py-3 bg-gray-200 w-full">
                 <v-col cols="12" md="8" sm="6">
+                    
                     <v-form class="max-w" @submit.prevent="saveCSF">
                         <div class="py-20 bg-gray-200 ">
                             <v-card class="mb-3 md:mb-0 sm:mb-0 text-center" >
@@ -336,21 +351,22 @@ watch(
                                         <div class="p-5">
                                             <a href="#">
                                                 <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-                                                    <span v-if="division.length > 0"> {{ division[0].division_name }} </span> <br>
-                                                    <span v-if="section.data.length > 0"> {{ section.data[0].section_name }} </span> 
-                                                    <!-- <span v-if="sub_section.data.length > 0"> {{ sub_section.data[0].sub_section_name }}</span> -->
-                                                    <!-- <span v-if="form.sub_section_type" class="ml-3"> {{ form.sub_section_type }}</span> -->
+                                                    <span v-if="division && division.length > 0"> {{ division[0].division_name }} </span> <br>
+                                                    <span v-if="office && office.length > 0"> {{ office[0].office_name }} </span> <br>
+                                                    <span v-if="section && section.data && section.data.length > 0"> {{ section.data[0].section_name }} </span> 
+                                                    <span v-if="service && service.length > 0"> {{ service[0].service_name }} </span> 
+                                                    <span v-if="sub_service && sub_service.length > 0"> {{ sub_service[0].sub_service_name }} </span>
                                                 </h5>
                                             </a>
                                             <p class="mb-3 font-normal text-gray-700 dark:text-gray-400 ">This questionaire aims to solicit your honest assessment of our services. Please take a minute in filling out this form and help us serve you better.</p>
                                             <div>
 
                                                 <v-text-field   
-                                                    v-if="date_display[0].is_displayed == 1"                                 
+                                                    v-if="date_display && date_display.length > 0 && date_display[0].is_displayed == 1"                                 
                                                     v-model="form.date" 
                                                     type="date" 
                                                     label="Date"
-                                                    variant="outlined" 
+                                                    variant="outlined"
                                                 >
                                                 </v-text-field>
 
@@ -392,7 +408,7 @@ watch(
                                                             label="Client_type*"
                                                             variant="outlined"
                                                             v-model="form.client_type"
-                                                            :items="['General Public','Internal Employees','Business/Organization','Government Employees' ]"
+                                                            :items="['Government (Employee or nother Agency)','Citizen','Student','Landowner','Farmer', 'Others' ]"
                                                             :rules="[v => !!v || errors.client_type || 'This field is required']"
 
                                                         >
@@ -418,7 +434,7 @@ watch(
                                                                 label="Age Group*"
                                                                 variant="outlined"
                                                                 v-model="form.age_group"
-                                                                :items="['19 or lower','20-34','35-49','50-64','60+', 'Prefer not to say']"
+                                                                :items="['30 and below','31-40','41-50','51-60','60 and above', 'Prefer not to say']"
                                                                 :rules="[
                                                                     (v) => !!v || errors.sex ||  'This field is required',]
                                                                 "

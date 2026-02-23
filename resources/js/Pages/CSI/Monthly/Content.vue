@@ -351,23 +351,23 @@
                     ANALYSIS:
                 </v-card-title>
                 <v-card-content >
-                    <div v-if="data.section && data.section.data && data.section.data.length > 0 && data.section.data[0]"  class="m-5" style="margin-top: -10px;text-align: justify;">
-                        The  <span>{{ data.section.data[0].section_name }}</span> section had <span>{{ data.total_respondents }}</span> respondents who rated the CSF, 
+                    <div style="margin-top: -10px;text-align: justify;">
+                        The  <span>{{ data.service.data[0].service_name }}</span> section had <span>{{ data.total_respondents }}</span> respondents who rated the CSF, 
                         and <span>{{ data.total_vss_respondents }}</span> (or <span>{{ data.percentage_vss_respondents }}</span>%) of those respondents rated 
-                        the section with satisfied responses (VS & S) for all service quality attributes. The <span>{{ data.section.data[0].section_name }}</span> section had a 
+                        the section with satisfied responses (VS & S) for all service quality attributes. The <span>{{ data.service.data[0].service_name }}</span> section had a 
                         <span>{{ data.customer_satisfaction_index }}</span>% Customer Satisfaction Index as well as a Net Promoter Score of <span>{{ data.net_promoter_score }}</span>. 
-                        The Customer Satisfaction Rating for the <span>{{ data.section.data[0].section_name }}</span> 
+                        The Customer Satisfaction Rating for the <span>{{ data.service.data[0].service_name }}</span> 
                         section is <span>{{ data.customer_satisfaction_rating }}</span>%, 
                         which <span v-if="data.customer_satisfaction_rating < 95">does not</span> achieved its functional objective of 95% of customer surveyed are at least satisfied with the services.
                     </div>
-                    <div v-else  class="m-5" style="margin-top: -10px;text-align: justify;">
+                    <!-- <div v-else  class="m-5" style="margin-top: -10px;text-align: justify;">
                         The  <span>{{ data.division.division_name }}</span> had <span>{{ data.total_respondents }}</span> respondents who rated the CSF, 
                         and <span>{{ data.total_vss_respondents }}</span> (or <span>{{ data.percentage_vss_respondents }}</span>%) of those respondents rated 
                         the division with satisfied responses (VS & S) for all service quality attributes. The <span>{{ data.division.division_name }}</span> had a 
                         <span>{{ data.customer_satisfaction_index }}</span>% Customer Satisfaction Index as well as a Net Promoter Score of <span>{{ data.net_promoter_score }}</span>. 
                         The Customer Satisfaction Rating for the <span>{{ data.division.division_name }}</span> is <span>{{ data.customer_satisfaction_rating }}</span>%, 
                         which <span v-if="data.customer_satisfaction_rating < 95">does not</span> achieved its functional objective of 95% of customer surveyed are at least satisfied with the services.
-                    </div>
+                    </div> -->
                 </v-card-content>
             </v-card>
 

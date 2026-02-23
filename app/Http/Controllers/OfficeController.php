@@ -32,7 +32,7 @@ class OfficeController extends Controller
         ->orderByDesc('created_at')
         ->paginate(10);
 
-        return Inertia::render('Libraries/Offices/Index')
+        return Inertia::render('Settings/Offices/Index')
                     ->with('offices', $offices)
                     ->with('user', $user);
     }

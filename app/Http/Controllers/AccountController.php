@@ -38,7 +38,7 @@ class AccountController extends Controller
 
         $data = AccountResource::collection($accounts);
 
-        return Inertia::render('Account/Index')
+        return Inertia::render('Settings/Accounts/Index')
                     ->with('accounts', $data)
                     ->with('offices', $offices)
                     ->with('divisions', $divisions);

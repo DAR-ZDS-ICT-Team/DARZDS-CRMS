@@ -31,9 +31,9 @@ class UserFactory extends Factory
             'profile_photo_path' => null,
             'account_type' => 'user',
             'designation' => 'PTA IV',
-            'region_id' => 10,
-            'service_id' => 3,
-            'unit_id' => 3,
+            'office_id' => null,
+            'division_id' => null,
+            'section_id' => null,
         ];
     }
 

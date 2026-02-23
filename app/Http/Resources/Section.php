@@ -18,8 +18,10 @@ class Section extends JsonResource
     {
         return [
             'id' => $this->id,
+            'office_id' => $this->office_id,
+            'division_id' => $this->division_id,
             'section_name' => $this->section_name,    
-            'sub_sections'=> $this->sub_sections ? SubSection::collection($this->sub_sections) : [],
+            // 'sub_sections'=> $this->sub_sections ? SubSection::collection($this->sub_sections) : [],
         ];
     }
 }

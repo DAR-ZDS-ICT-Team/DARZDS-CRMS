@@ -9,11 +9,16 @@ class Section extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'office_id',
         'division_id',  
         'section_name',
     ];
     public function division(){
         return $this->belongsTo(Division::class);
+    }
+
+    public function services(){
+        return $this->hasMany(Services::class);
     }
 
     public function sub_sections(){
