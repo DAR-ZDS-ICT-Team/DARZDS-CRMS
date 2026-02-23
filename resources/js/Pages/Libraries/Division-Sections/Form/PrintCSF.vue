@@ -28,7 +28,7 @@
                     </div>
 
                     <div style="text-align: center; margin: auto;margin-bottom: 20px">
-                       <span style="font-weight:bold; font-size:25px">Department of Science and Technology</span> 
+                       <span style="font-weight:bold; font-size:25px">Department of Agrarian Reform ZDS</span> 
                     </div>
 
                      <div style="margin: auto;">
