@@ -96,7 +96,7 @@ Customer SAtisfaction Feedback
 
 
 ## Contact Information
-For any inquiries, please contact DOST IX assigned personnel.
+For any inquiries, please contact DAR-ZDS assigned personnel.
 
 
 

@@ -25,6 +25,7 @@
     const generated = ref(false);
     const baseURL = window.location.origin;
 
+<<<<<<< HEAD
     const generateURL = async (sub_service, sub_service_id) => { 
         generated.value = true;
 
@@ -55,14 +56,59 @@
                                 '&service_id=' +  props.service.data[0].id;
             }
         } else {
+=======
+    generated.value=true;
+
+    // if(sub_section){
+    //         if(sub_section_type){
+    //             qr_link_type.value = 1.1;
+    //             form.generated_url = baseURL + '/divisions/csf?' +
+    //                             'office_id=' + props.user.office_id + 
+    //                             '&division_id=' + props.division.id + 
+    //                             '&section_id=' +  props.section.data[0].id +
+    //                             '&sub_section_id=' + sub_section.id +
+    //                              '&sub_section_type=' + form.sub_section_type.type_name;
+
+    //         }
+    //         else{
+    //             qr_link_type.value = 1.2;
+    //             form.generated_url = baseURL + '/divisions/csf?' +
+    //                             'office_id=' + props.user.office_id + 
+    //                             '&division_id=' + props.division.id + 
+    //                             '&section_id=' +  props.section.data[0].id +
+    //                             '&sub_section_id=' + sub_section.id;
+    //         }
+          
+           
+    //   }
+
+        qr_link_type.value = 0;
+        if(props.section && Array.isArray(props.section.data) && props.section.data.length > 0 && props.section.data[0]){
+            qr_link_type.value = 0;
+            form.generated_url = baseURL + '/divisions/csf?' +
+                                'office_id=' + props.user.office_id + 
+                                '&division_id=' + props.division.id + 
+                                '&section_id=' +  props.section.data[0].id;
+        }
+        else{
+>>>>>>> origin/master
             qr_link_type.value = 1;
             form.generated_url = baseURL + '/divisions/csf?' +
                                 'office_id=' + props.user.office_id + 
                                 '&division_id=' + props.division.id;
         }
+<<<<<<< HEAD
     }
 
     const copied = ref(false);
+=======
+      
+  
+  }
+
+  const baseURL = window.location.origin;
+const copied = ref(false);
+>>>>>>> origin/master
     // Function to copy text to clipboard
     const copyToClipboard = () => {
         // Create a temporary textarea element
@@ -161,16 +207,25 @@
                                 DIVISION: {{ division.division_name }}
                             </div>
                             <v-divider class="border-opacity-100"></v-divider>
+<<<<<<< HEAD
                             <div v-if="service && Array.isArray(service.data) && service.data.length > 0 && service.data[0]">
                                 SERVICE: {{ service.data[0].service_name }}
+=======
+                            <div v-if="section && Array.isArray(section.data) && section.data.length > 0 && section.data[0]">
+                                SECTION : {{ section.data[0].section_name }}
+>>>>>>> origin/master
                             </div>
                         </v-card-title>
                     </v-card>
                     <v-card class="mb-3" height="600px" >
                       <v-card-body class="overflow-visible">
                         <v-row class="p-5 " key="">
+<<<<<<< HEAD
                         <!-- You might want to uncomment this if you need the selection functionality -->
                         <!-- <v-col class="my-auto ml-5" v-if="service.data && service.data[0] && service.data[0].sub_services && service.data[0].sub_services.length > 0" >
+=======
+                        <!-- <v-col class="my-auto ml-5" v-if="section.data[0].sub_sections.length > 0" >
+>>>>>>> origin/master
                             <vue-multiselect
                                 v-model="form.selected_sub_service"
                                 prepend-icon="mdi-account"
@@ -182,7 +237,12 @@
                                 :allow-empty="false"
                             >         
                             </vue-multiselect>           
+<<<<<<< HEAD
                         </v-col> -->
+=======
+                        </v-col>
+    -->
+>>>>>>> origin/master
 
                         <v-col class="my-auto" v-if="sub_services && sub_services.length > 0 && form.selected_sub_service" >
                             <vue-multiselect
@@ -243,6 +303,20 @@
                                 border: 3px #ffffff solid;
                                 width: 300px;
                                 height: 300px;
+                                "
+                            />
+                            <QrcodeVue
+                                v-if="qr_link_type == 1"
+                                :render-as="'svg'"
+                                :value="`${baseURL}/divisions/csf?office_id=${user.office_id}&division_id=${props.division.id}`"
+                                :size="145"
+                                :foreground="'#000'"
+                                level="L"
+                                style="
+                                border: 3px #ffffff solid;
+                                width: 300px;
+                                height: 300px;
+                      
                                 "
                             />
                             <QrcodeVue
