@@ -14,6 +14,7 @@
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "mews/captcha": "^3.3",
+        "phpmyadmin/twig-i18n-extension": "^5.0",
         "spatie/laravel-pdf": "^1.4",
         "tightenco/ziggy": "^1.0",
         "twig/twig": "^3.23"
@@ -71,3 +72,4 @@
     "minimum-stability": "stable",
     "prefer-stable": true
 }
+ 
