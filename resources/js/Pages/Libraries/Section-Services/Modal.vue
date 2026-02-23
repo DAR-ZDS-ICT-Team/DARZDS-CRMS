@@ -118,6 +118,7 @@ const saveSection = () => {
             <v-card-title class="bg-indigo mb-5">
                 <span class="text-h5" v-if="props.action_clicked == 'add_new_section'">Add New Section</span>
                  <span class="text-h5" v-if="props.action_clicked == 'add_new_service'">Add New Service</span>
+            </v-card-title>
             <v-card-text>
 
                 
@@ -176,7 +177,7 @@ const saveSection = () => {
 
             </v-card-text>
             <v-spacer></v-spacer>
-            <v-card-action >
+            <v-card-actions>
                 <v-divider></v-divider>
                 <div style="text-align: center">
                     <v-btn
@@ -191,13 +192,13 @@ const saveSection = () => {
                         class="ma-2"
                         color="green-darken-1"
                         type="button"
-                        @click="saveDivision()"
+                        @click="saveSection()"
                     >
                         Save
                         <v-icon end icon="mdi-check"></v-icon>
                     </v-btn>
                 </div>
-            </v-card-action>
+            </v-card-actions>
         </v-card>
     </v-dialog>
 </template>

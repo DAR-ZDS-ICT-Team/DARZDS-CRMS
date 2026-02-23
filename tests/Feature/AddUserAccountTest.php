@@ -12,7 +12,7 @@ class AddUserAccountTest extends TestCase
     /**
      * A basic feature test example.
      */
-    // use RefreshDatabase; // Reset the database after each test
+    use RefreshDatabase; // Reset the database after each test
 
     /**
      * Test creating a user account.
@@ -42,7 +42,16 @@ class AddUserAccountTest extends TestCase
         ]);
 
         // Act: Perform the request to create a user account
-        $response = $this->actingAs($admin)->post('/accounts/add');
+        $response = $this->actingAs($admin)->post('/accounts/add', [
+            'name' => 'Test User',
+            'designation' => 'PTA IV',
+            'email' => 'test.user@example.com',
+            'password' => 'password',
+            'office' => null,
+            'account_type' => 'user',
+            'division' => null,
+            'section' => null,
+        ]);
 
         // Assert: Verify the user was successfully created
         $response->assertStatus(302); // Assuming successful redirect after registration
