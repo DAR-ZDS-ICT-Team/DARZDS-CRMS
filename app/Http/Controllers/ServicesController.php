@@ -63,9 +63,29 @@ class ServicesController extends Controller
             'is_disabled' => 'nullable|boolean',
         ]);
 
+        $division = Division::findOrFail($request->division_id);
+        $baseSlug = Str::slug($request->service_name, '-');
+        $slug = $baseSlug;
+        $suffix = 1;
+        $slugExists = function ($candidate) use ($request) {
+            $query = Services::where('slug', $candidate)
+                ->where('division_id', $request->division_id);
+            if ($request->section_id) {
+                $query->where('section_id', $request->section_id);
+            } else {
+                $query->whereNull('section_id');
+            }
+            return $query->exists();
+        };
+        while ($slugExists($slug)) {
+            $slug = "{$baseSlug}-{$suffix}";
+            $suffix++;
+        }
+
         Services::create([
-            'service_name' => strtoupper($request->service_name),
-            'slug' => Str::slug($request->service_name, '-'),
+            'office_id' => $division->office_id,
+            'service_name' => $request->service_name,
+            'slug' => $slug,
             'division_id' => $request->division_id,
             'section_id' => $request->section_id,
             'service_type' => $request->service_type,
@@ -79,9 +99,10 @@ class ServicesController extends Controller
     /**
      * UPDATE - Service
      */
-    public function updateService(Request $request, $id)
+    public function updateService(Request $request)
     {
         $request->validate([
+            'id' => 'required|exists:services,id',
             'service_name' => 'required|string|max:255',
             'service_type' => 'nullable|string|max:50',
             'division_id' => 'required|exists:divisions,id',
@@ -90,10 +111,31 @@ class ServicesController extends Controller
             'is_disabled' => 'nullable|boolean',
         ]);
 
-        $service = Services::findOrFail($id);
+        $service = Services::findOrFail($request->id);
+        $division = Division::findOrFail($request->division_id);
+        $baseSlug = Str::slug($request->service_name, '-');
+        $slug = $baseSlug;
+        $suffix = 1;
+        $slugExists = function ($candidate) use ($request, $service) {
+            $query = Services::where('slug', $candidate)
+                ->where('division_id', $request->division_id)
+                ->where('id', '!=', $service->id);
+            if ($request->section_id) {
+                $query->where('section_id', $request->section_id);
+            } else {
+                $query->whereNull('section_id');
+            }
+            return $query->exists();
+        };
+        while ($slugExists($slug)) {
+            $slug = "{$baseSlug}-{$suffix}";
+            $suffix++;
+        }
+
         $service->update([
-            'service_name' => strtoupper($request->service_name),
-            'slug' => Str::slug($request->service_name, '-'),
+            'office_id' => $division->office_id,
+            'service_name' => $request->service_name,
+            'slug' => $slug,
             'division_id' => $request->division_id,
             'section_id' => $request->section_id,
             'service_type' => $request->service_type,
@@ -107,9 +149,13 @@ class ServicesController extends Controller
     /**
      * DELETE - Service
      */
-    public function destroyService($id)
+    public function destroyService(Request $request)
     {
-        $service = Services::findOrFail($id);
+        $request->validate([
+            'id' => 'required|exists:services,id',
+        ]);
+
+        $service = Services::findOrFail($request->id);
         $service->delete();
 
         return back()->with('message', 'Service deleted successfully.');
@@ -129,7 +175,7 @@ class ServicesController extends Controller
         ]);
 
         Services::create([
-            'service_name' => strtoupper($request->service_name),
+            'service_name' => $request->service_name,
             'service_description' => $request->service_description,
             'service_availability' => $request->service_availability,
             'service_active' => $request->has('service_active') ? $request->service_active : true,
@@ -154,7 +200,7 @@ class ServicesController extends Controller
 
         $subService = Services::findOrFail($id);
         $subService->update([
-            'service_name' => strtoupper($request->service_name),
+            'service_name' => $request->service_name,
             'service_description' => $request->service_description,
             'service_availability' => $request->service_availability,
             'service_active' => $request->has('service_active') ? $request->service_active : true,
@@ -167,9 +213,13 @@ class ServicesController extends Controller
     /**
      * DELETE - SubService
      */
-    public function destroySubService($id)
+    public function destroySubService(Request $request)
     {
-        $subService = Services::findOrFail($id);
+        $request->validate([
+            'id' => 'required|exists:services,id',
+        ]);
+
+        $subService = Services::findOrFail($request->id);
         $subService->delete();
 
         return back()->with('message', 'SubService deleted successfully.');

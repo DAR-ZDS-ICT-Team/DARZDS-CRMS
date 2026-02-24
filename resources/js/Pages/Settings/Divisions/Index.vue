@@ -9,21 +9,29 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    offices: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const showModal = ref(false);
 const isEdit = ref(false);
-const form = ref({ id: null, division_name: '' });
+const form = ref({ id: null, division_name: '', office_id: null });
 
 const openAdd = () => {
     isEdit.value = false;
-    form.value = { id: null, division_name: '' };
+    form.value = { id: null, division_name: '', office_id: null };
     showModal.value = true;
 };
 
 const openEdit = (division) => {
     isEdit.value = true;
-    form.value = { id: division.id, division_name: division.division_name };
+    form.value = {
+        id: division.id,
+        division_name: division.division_name,
+        office_id: division.office_id ?? null,
+    };
     showModal.value = true;
 };
 
@@ -61,6 +69,7 @@ const deleteDivision = (division) => {
                     <tr>
                         <th style="width:60px">#</th>
                         <th>Division Name</th>
+                        <th>Office</th>
                         <th class="text-right">Actions</th>
                     </tr>
                 </thead>
@@ -68,6 +77,7 @@ const deleteDivision = (division) => {
                     <tr v-for="(division, index) in props.divisions" :key="division.id">
                         <td>{{ index + 1 }}</td>
                         <td>{{ division.division_name }}</td>
+                        <td>{{ division.office?.name || '—' }}</td>
                         <td class="text-right">
                             <v-btn size="small" class="mr-2" @click="openEdit(division)">Edit</v-btn>
                             <v-btn size="small" color="error" @click="deleteDivision(division)">Delete</v-btn>
@@ -83,6 +93,15 @@ const deleteDivision = (division) => {
                     <span class="text-h5">{{ isEdit ? 'Update' : 'Add' }} Division</span>
                 </v-card-title>
                 <v-card-text>
+                    <v-select
+                        label="Office"
+                        :items="props.offices"
+                        item-title="name"
+                        item-value="id"
+                        v-model="form.office_id"
+                        variant="outlined"
+                        class="mb-4"
+                    />
                     <v-text-field label="Division Name" v-model="form.division_name" variant="outlined" />
                 </v-card-text>
                 <v-card-actions class="justify-end">

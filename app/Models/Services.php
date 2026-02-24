@@ -9,6 +9,7 @@ class Services extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'office_id',
         'division_id',
         'section_id',
         'service_name',
@@ -21,6 +22,11 @@ class Services extends Model
     public function division()
     {
         return $this->belongsTo(Division::class);
+    }
+
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
     }
 
     public function section()

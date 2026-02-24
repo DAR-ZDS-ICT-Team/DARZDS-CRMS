@@ -24,5 +24,10 @@ class Division extends Model
         return $this->hasMany(Services::class);
     }
 
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
+    }
+
 
 }

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Division;
 use App\Models\Section;
 use App\Models\Services;
+use App\Models\Office;
 
 class SettingsController extends Controller
 {
@@ -17,10 +18,18 @@ class SettingsController extends Controller
 
     public function divisions()
     {
-        $divisions = Division::orderBy('division_name')->get();
+        $divisions = Division::with('office')->orderBy('division_name')->get();
+        $offices = Office::orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($office) => [
+                'id' => $office->id,
+                'name' => $office->name,
+            ])
+            ->values();
 
         return Inertia::render('Settings/Divisions/Index', [
             'divisions' => $divisions,
+            'offices' => $offices,
         ]);
     }
 
