@@ -60,7 +60,7 @@ class AccountController extends Controller
     {
         $account = new User();
         $account->name = $request->name;
-        $account->designation = strtoupper($request->designation);
+        $account->designation = $request->designation;
         $account->email = $request->email;
         $account->password = Hash::make($request->password);
         $account->office_id = $request->office;
@@ -77,7 +77,7 @@ class AccountController extends Controller
     {
         $account = User::findorFail($request->id);
         $account->name = $request->name;
-        $account->designation = strtoupper($request->designation);
+        $account->designation = $request->designation;
         $account->email = $request->email;
         $account->office_id = $request->office;
         $account->account_type = $request->account_type;

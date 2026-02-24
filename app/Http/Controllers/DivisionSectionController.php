@@ -61,10 +61,12 @@ class DivisionSectionController extends Controller
     {
         $request->validate([
             'division_name' => 'required|string|max:255',
+            'office_id' => 'required|exists:offices,id',
         ]);
 
         Division::create([
-            'division_name' => strtoupper($request->division_name),
+            'office_id' => $request->office_id,
+            'division_name' => $request->division_name,
             'slug' => Str::slug($request->division_name, '-'),
         ]);
 
@@ -81,9 +83,12 @@ class DivisionSectionController extends Controller
             'section_name' => 'required|string|max:255',
         ]);
 
+        $division = Division::findOrFail($request->division_id);
+
         Section::create([
+            'office_id' => $division->office_id,
             'division_id' => $request->division_id,
-            'section_name' => strtoupper($request->section_name),
+            'section_name' => $request->section_name,
         ]);
 
         return back()->with('message', 'Section created successfully.');
@@ -96,12 +101,14 @@ class DivisionSectionController extends Controller
     {
         $request->validate([
             'division_name' => 'required|string|max:255',
+            'office_id' => 'required|exists:offices,id',
         ]);
 
         $divisionId = $id ?? $request->id;
         $division = Division::findOrFail($divisionId);
         $division->update([
-            'division_name' => strtoupper($request->division_name),
+            'office_id' => $request->office_id,
+            'division_name' => $request->division_name,
             'slug' => Str::slug($request->division_name, '-'),
         ]);
 
@@ -115,12 +122,16 @@ class DivisionSectionController extends Controller
     {
         $request->validate([
             'section_name' => 'required|string|max:255',
+            'division_id' => 'required|exists:divisions,id',
         ]);
 
         $sectionId = $id ?? $request->id;
         $section = Section::findOrFail($sectionId);
+        $division = Division::findOrFail($request->division_id);
         $section->update([
-            'section_name' => strtoupper($request->section_name),
+            'office_id' => $division->office_id,
+            'division_id' => $request->division_id,
+            'section_name' => $request->section_name,
         ]);
 
         return back()->with('message', 'Section updated successfully.');
