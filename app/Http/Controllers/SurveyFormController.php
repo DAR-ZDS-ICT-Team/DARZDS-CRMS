@@ -104,6 +104,16 @@ class SurveyFormController extends Controller
     // SurveyFormRequest
     public function store(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'captcha' => 'required|captcha',
+        ]);
+
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
         DB::beginTransaction();
 
         try {

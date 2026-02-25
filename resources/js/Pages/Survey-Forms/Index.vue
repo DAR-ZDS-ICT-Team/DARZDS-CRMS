@@ -408,7 +408,7 @@ watch(
                                                             label="Client_type*"
                                                             variant="outlined"
                                                             v-model="form.client_type"
-                                                            :items="['Government (Employee or nother Agency)','Citizen','Student','Landowner','Farmer', 'Others' ]"
+                                                            :items="['Government (Employee or nother Agency)','Citizen','Student','Landowner','Farmer','Representative', 'Others' ]"
                                                             :rules="[v => !!v || errors.client_type || 'This field is required']"
 
                                                         >
